@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GreenBin — Smarter waste management for cleaner communities</title>
+<style>
+  :root {
+    --green-900: #123f22;
+    --green-800: #14532d;
+    --green-700: #166534;
+    --green-600: #15803d;
+    --green-100: #dcfce7;
+    --green-50: #f0fdf4;
+    --ink: #101c14;
+    --body-text: #1a2b1f;
+    --muted: #33463a;
+    --bg: #f8faf7;
+    --card-bg: #ffffff;
+    --accent-dark: #0b2e18;
+    --focus-ring: #0a58ca;
+    --amber: #92400e;
+    --amber-bg: #fef3c7;
+    --danger: #991b1b;
+    --danger-bg: #fee2e2;
+    --success: #14532d;
+    --success-bg: #dcfce7;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--body-text);
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  a { color: var(--green-800); }
+  .skip-link {
+    position: absolute; left: -9999px; top: auto;
+    background: #fff; color: var(--ink);
+    padding: 0.6rem 1rem; border: 3px solid var(--focus-ring); border-radius: 8px;
+    z-index: 100;
+  }
+  .skip-link:focus { left: 1rem; top: 1rem; }
+
+  header.site-header {
+    background: var(--green-800);
+    color: #ffffff;
+    padding: 1rem 1.5rem;
+  }
+  .header-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 0.75rem; }
+  .brand-mark {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: #ffffff; color: var(--green-800);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 800; flex-shrink: 0;
+  }
+  .brand-name { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.2px; margin: 0; color: #fff; line-height: 1.2; }
+  .brand-sub { margin: 0; font-size: 0.95rem; color: #e7f6ec; }
+  nav.top-nav { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  nav.top-nav a { color: #ffffff; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+  section.block { padding: 3rem 0; border-bottom: 1px solid #d8e2da; }
+  section.block:last-child { border-bottom: none; }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+  .eyebrow {
+    display: inline-block;
+    background: var(--green-100);
+    color: var(--green-900);
+    border: 1px solid var(--green-700);
+    font-weight: 700; font-size: 0.9rem;
+    padding: 0.3rem 0.8rem; border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  h1 { font-size: 2.6rem; line-height: 1.15; color: var(--ink); margin: 0 0 0.75rem; }
+  .tagline { font-size: 1.35rem; color: var(--green-900); font-weight: 600; margin: 0 0 1rem; }
+  .lede { color: var(--body-text); max-width: 38rem; margin: 0 0 1.75rem; }
+
+  .btn {
+    display: inline-block;
+    font-weight: 800; font-size: 1.05rem;
+    padding: 0.9rem 1.6rem;
+    border-radius: 10px;
+    border: 3px solid var(--accent-dark);
+    cursor: pointer;
+    text-decoration: none;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--green-700); color: #ffffff; }
+  .btn-primary:hover { background: var(--green-800); }
+  .btn-primary:active { background: var(--accent-dark); }
+  .btn-primary:focus-visible, .btn-secondary:focus-visible,
+  input:focus-visible, select:focus-visible, textarea:focus-visible,
+  a:focus-visible, button:focus-visible {
+    outline: 4px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .btn-secondary { background: #ffffff; color: var(--green-900); border: 3px solid var(--green-800); }
+  .btn-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .hint { font-size: 0.95rem; color: var(--muted); margin-top: 0.9rem; }
+
+  h2 { font-size: 1.8rem; color: var(--ink); margin: 0 0 0.5rem; line-height: 1.25; }
+  h3 { font-size: 1.2rem; color: var(--ink); margin: 0 0 0.5rem; }
+  .section-desc { color: var(--body-text); max-width: 44rem; margin: 0 0 1.75rem; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 2px solid #223527;
+    border-radius: 14px;
+    padding: 1.75rem;
+  }
+  label { display: block; font-weight: 700; color: var(--ink); margin: 1.1rem 0 0.4rem; }
+  label:first-of-type { margin-top: 0; }
+  .optional-tag { font-weight: 400; color: var(--muted); font-size: 0.9rem; }
+  input[type="text"], select, textarea {
+    width: 100%;
+    font: inherit;
+    color: var(--ink);
+    background: #ffffff;
+    border: 2.5px solid #2f4536;
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  input::placeholder, textarea::placeholder { color: #4b5f52; opacity: 1; }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 3px rgba(10, 88, 202, 0.3);
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+  fieldset { border: none; padding: 0; margin: 1.1rem 0 0; }
+  legend { font-weight: 700; color: var(--ink); padding: 0; margin-bottom: 0.4rem; }
+  .radio-row { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  .radio-row label { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 600; margin: 0; cursor: pointer; }
+  .radio-row input[type="radio"] { width: 1.15rem; height: 1.15rem; accent-color: var(--green-700); }
+
+  .field-error { color: var(--danger); font-size: 0.95rem; font-weight: 600; margin: 0.35rem 0 0; display: none; }
+  .field-error.visible { display: block; }
+  input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+
+  .guidance {
+    margin-top: 1rem; padding: 0.9rem 1rem;
+    background: var(--green-50);
+    border: 2px solid var(--green-700);
+    border-radius: 10px; color: var(--ink);
+  }
+  .confirmation {
+    display: none;
+    margin-top: 1.25rem; padding: 1rem 1.15rem;
+    background: var(--success-bg); color: var(--green-900);
+    border: 2px solid var(--success); border-radius: 10px;
+    font-weight: 600;
+  }
+  .confirmation.visible { display: block; }
+  .confirmation strong { display: block; font-size: 1.05rem; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+  }
+  .stat-card {
+    background: var(--card-bg);
+    border: 2px solid #223527;
+    border-radius: 14px;
+    padding: 1.25rem 1.35rem;
+    border-top: 8px solid var(--green-700);
+  }
+  .stat-card strong.k { display: block; font-size: 0.95rem; color: var(--muted); font-weight: 700; }
+  .stat-card strong.v { display: block; font-size: 2rem; color: var(--ink); line-height: 1.2; }
+  .stat-card small { color: var(--body-text); }
+  .bar { height: 10px; background: #dde7de; border-radius: 999px; margin-top: 0.7rem; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--green-700); }
+  .mock-note {
+    margin-top: 1.25rem; padding: 0.85rem 1rem;
+    background: var(--amber-bg); color: #3f2a05;
+    border: 2px solid var(--amber); border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .category-breakdown { margin-top: 1.5rem; }
+  .cat-row { display: grid; grid-template-columns: 130px 1fr auto; gap: 0.75rem; align-items: center; padding: 0.4rem 0; }
+  .cat-row .cat-name { font-weight: 700; color: var(--ink); font-size: 0.95rem; }
+  .cat-row .cat-count { font-weight: 700; color: var(--muted); font-size: 0.95rem; min-width: 3ch; text-align: right; }
+
+  .reports-list { display: grid; gap: 1.25rem; margin-top: 1.5rem; }
+  .report-card {
+    background: var(--card-bg);
+    border: 2px solid #223527;
+    border-radius: 14px;
+    padding: 1.25rem 1.35rem;
+  }
+  .report-card.new { border-color: var(--green-700); box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.25); }
+  .report-top { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.4rem; }
+  .badge {
+    display: inline-block; font-size: 0.85rem; font-weight: 800;
+    padding: 0.25rem 0.75rem; border-radius: 999px; border: 2px solid;
+  }
+  .badge-cat { background: var(--green-100); color: var(--green-900); border-color: var(--green-700); }
+  .badge-status-reported { background: #fff7ed; color: #7c2d12; border-color: #9a3412; }
+  .badge-status-acknowledged { background: #eff6ff; color: #1e3a8a; border-color: #1d4ed8; }
+  .badge-status-in_progress { background: #fefce8; color: #713f12; border-color: #a16207; }
+  .badge-status-collected { background: var(--success-bg); color: var(--green-900); border-color: var(--green-700); }
+  .report-meta { color: var(--muted); font-size: 0.92rem; margin: 0.25rem 0 0.5rem; }
+  .report-desc { margin: 0.4rem 0 0; color: var(--body-text); }
+
+  .tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+  }
+  .tip-card {
+    background: var(--card-bg);
+    border: 2px solid #223527;
+    border-radius: 14px;
+    padding: 1.25rem 1.35rem;
+    border-top: 8px solid var(--green-600);
+  }
+  .tip-card p { margin: 0.4rem 0 0; }
+
+  .form-summary-error {
+    display: none;
+    margin: 0 0 1rem; padding: 0.9rem 1rem;
+    background: var(--danger-bg); color: #5f0f0f;
+    border: 2px solid var(--danger); border-radius: 10px; font-weight: 600;
+  }
+  .form-summary-error.visible { display: block; }
+
+  footer { background: var(--accent-dark); color: #fff; padding: 1.75rem 1.5rem; text-align: center; }
+  footer p { margin: 0.25rem 0; }
+
+  @media (max-width: 860px) {
+    body { font-size: 16px; }
+    h1 { font-size: 2rem; }
+    .tagline { font-size: 1.15rem; }
+    .hero, .grid-2 { grid-template-columns: 1fr; }
+    section.block { padding: 2.25rem 0; }
+    .btn { width: 100%; text-align: center; }
+    .btn-row { flex-direction: column; }
+    .cat-row { grid-template-columns: 1fr auto; }
+    .cat-row .bar { grid-column: 1 / -1; order: 3; }
+  }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">♻</div>
+      <div>
+        <p class="brand-name">GreenBin</p>
+        <p class="brand-sub">Community waste reporting</p>
+      </div>
+    </div>
+    <nav class="top-nav" aria-label="Primary">
+      <a href="#dashboard">Dashboard</a>
+      <a href="#report">Report Waste</a>
+      <a href="#reports">Recent Reports</a>
+      <a href="#tips">Sorting Tips</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- WELCOME / DASHBOARD -->
+  <section class="block" id="dashboard" aria-labelledby="welcome-heading">
+    <div class="hero">
+      <div>
+        <span class="eyebrow">Local prototype · mock data only</span>
+        <h1 id="welcome-heading">Welcome to GreenBin</h1>
+        <p class="tagline">Smarter waste management for cleaner communities.</p>
+        <p class="lede">Report overflowing bins, illegal dumping, and recyclables in seconds. Track what your neighbours have reported and learn how to sort waste correctly. Everything on this page runs locally in your browser — no sign-in, no database, no uploads.</p>
+        <div class="btn-row">
+          <a class="btn btn-primary" href="#report">Report waste now</a>
+          <a class="btn btn-secondary" href="#reports">View recent reports</a>
+        </div>
+        <p class="hint">Prototype note: all numbers and reports below are sample/mock data for demonstration.</p>
+      </div>
+      <div class="card" aria-label="How it works">
+        <h2 style="font-size:1.25rem">How it works</h2>
+        <ol style="margin:0.5rem 0 0; padding-left:1.25rem; color:var(--body-text)">
+          <li><strong>Report</strong> waste with a location, category and description.</li>
+          <li><strong>Track</strong> your report in the recent-reports list below.</li>
+          <li><strong>Sort right</strong> using the category guidance and tips.</li>
+        </ol>
+        <p class="hint">New reports you submit appear instantly in the list and update the statistics.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMUNITY WASTE STATISTICS -->
+  <section class="block" id="stats" aria-labelledby="stats-heading">
+    <h2 id="stats-heading">Community waste statistics</h2>
+    <p class="section-desc">Live counts computed from the mock dataset on this page. Submitting the form updates these numbers instantly (in this browser session only).</p>
+    <div class="stats-grid" id="stats-grid" aria-live="polite">
+      <div class="stat-card"><strong class="k">Total reports</strong><strong class="v" id="stat-total">–</strong><small>Mock reports + your submissions</small><div class="bar" aria-hidden="true"><span id="bar-total" style="width:100%"></span></div></div>
+      <div class="stat-card"><strong class="k">Resolved (collected)</strong><strong class="v" id="stat-resolved">–</strong><small id="stat-resolved-sub">–</small><div class="bar" aria-hidden="true"><span id="bar-resolved" style="width:0%"></span></div></div>
+      <div class="stat-card"><strong class="k">Pending / in progress</strong><strong class="v" id="stat-pending">–</strong><small id="stat-pending-sub">–</small><div class="bar" aria-hidden="true"><span id="bar-pending" style="width:0%"></span></div></div>
+      <div class="stat-card"><strong class="k" id="stat-top-label">Top category</strong><strong class="v" id="stat-top">–</strong><small id="stat-top-sub">–</small><div class="bar" aria-hidden="true"><span id="bar-top" style="width:0%"></span></div></div>
+    </div>
+    <div class="card category-breakdown" aria-label="Reports by category">
+      <h3>Reports by category</h3>
+      <div id="category-bars"></div>
+    </div>
+    <div class="mock-note" role="note">Mock/test data only — no real users, no database, no authentication, no uploads.</div>
+  </section>
+
+  <!-- WASTE REPORTING FORM -->
+  <section class="block" id="report" aria-labelledby="report-heading">
+    <h2 id="report-heading">Report waste</h2>
+    <p class="section-desc">Fill in the location, pick the waste category, and describe what you see. Required fields are marked. Nothing is sent to a server — your report is added to the list below.</p>
+    <div class="grid-2">
+      <form class="card" id="report-form" novalidate aria-label="Waste report form">
+        <div class="form-summary-error" id="form-summary-error" role="alert" tabindex="-1"></div>
+
+        <label for="nickname">Your nickname <span class="optional-tag">(optional, mock only)</span></label>
+        <input id="nickname" name="nickname" type="text" placeholder="e.g. Maple St neighbour" autocomplete="nickname" maxlength="60" />
+
+        <label for="location">Location / landmark *</label>
+        <input id="location" name="location" type="text" placeholder="e.g. Maple St &amp; 3rd Ave bus stop" required aria-describedby="location-error" maxlength="140" />
+        <p class="field-error" id="location-error">Please enter a location (at least 3 characters).</p>
+
+        <label for="category">Waste category *</label>
+        <select id="category" name="category" required aria-describedby="category-error category-guidance">
+          <option value="">— Select a category —</option>
+          <option value="Plastic">Plastic</option>
+          <option value="Organic">Organic</option>
+          <option value="Paper">Paper</option>
+          <option value="Glass">Glass</option>
+          <option value="Metal">Metal</option>
+          <option value="E-waste">E-waste</option>
+          <option value="Hazardous">Hazardous</option>
+          <option value="Mixed / General">Mixed / General</option>
+        </select>
+        <p class="field-error" id="category-error">Please choose a waste category.</p>
+        <div class="guidance" id="category-guidance" aria-live="polite">Select a category to see disposal guidance here.</div>
+
+        <label for="description">Description *</label>
+        <textarea id="description" name="description" placeholder="What do you see? e.g. Overflowing bin, bags on the pavement…" required aria-describedby="description-error" maxlength="600"></textarea>
+        <p class="field-error" id="description-error">Please describe the issue (at least 10 characters).</p>
+
+        <fieldset>
+          <legend>Urgency</legend>
+          <div class="radio-row" role="radiogroup" aria-label="Urgency">
+            <label><input type="radio" name="urgency" value="Low" checked /> Low</label>
+            <label><input type="radio" name="urgency" value="Medium" /> Medium</label>
+            <label><input type="radio" name="urgency" value="High" /> High</label>
+          </div>
+        </fieldset>
+
+        <div class="btn-row" style="margin-top:1.5rem">
+          <button class="btn btn-primary" type="submit">Report Waste</button>
+        </div>
+        <div class="confirmation" id="confirmation" role="status" aria-live="polite" tabindex="-1"></div>
+        <p class="hint">Local-only prototype: submitting adds your report to “Recent reports” on this page. No data leaves your browser.</p>
+      </form>
+
+      <div class="card" aria-label="What happens next">
+        <h3>What happens next?</h3>
+        <ol style="margin:0.5rem 0 0; padding-left:1.25rem;">
+          <li>We validate your location, category and description right here.</li>
+          <li>Your report appears at the top of <a href="#reports">Recent reports</a>.</li>
+          <li>The <a href="#stats">dashboard counters</a> update immediately.</li>
+        </ol>
+        <h3 style="margin-top:1.5rem">Please don’t include</h3>
+        <p style="margin:0.4rem 0 0;">Real names, phone numbers, or exact home addresses. Use a nearby landmark instead. This prototype stores nothing permanently.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECENT REPORTS -->
+  <section class="block" id="reports" aria-labelledby="reports-heading">
+    <h2 id="reports-heading">Recent reports</h2>
+    <p class="section-desc">Sample community reports (mock data). Reports you submit through the form appear first in this list.</p>
+    <div class="reports-list" id="reports-list" aria-live="polite"></div>
+  </section>
+
+  <!-- WASTE-SORTING TIPS -->
+  <section class="block" id="tips" aria-labelledby="tips-heading">
+    <h2 id="tips-heading">Waste-sorting tips</h2>
+    <p class="section-desc">Quick guidance to sort correctly and keep recyclables clean. General advice for the prototype — always follow your local council rules.</p>
+    <div class="tips-grid">
+      <div class="tip-card"><h3>♳ Plastic</h3><p>Rinse bottles and containers. Flatten to save space. No plastic bags or film in the recycling bin.</p></div>
+      <div class="tip-card"><h3>🍂 Organic</h3><p>Bag food scraps and keep compost bins closed. No liquids or plastics in compost. Put out on compost day.</p></div>
+      <div class="tip-card"><h3>📰 Paper</h3><p>Keep paper dry and flat. Shredded paper goes in a paper bag. Greasy pizza boxes go in organic/general.</p></div>
+      <div class="tip-card"><h3>🫙 Glass</h3><p>Rinse jars and bottles. No broken glass loose — wrap and label it. Never put light bulbs in glass recycling.</p></div>
+      <div class="tip-card"><h3>🔩 Metal</h3><p>Rinse cans and tins. Empty aerosols completely. Scrap metal goes to a collection point, not the kerb bin.</p></div>
+      <div class="tip-card"><h3>🔋 E-waste &amp; Hazardous</h3><p>Never bin batteries, paint, or chemicals. Take them to a designated drop-off point and keep them dry and separate.</p></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p><strong>GreenBin</strong> · Smarter waste management for cleaner communities.</p>
+  <p style="font-size:0.9rem; color:#d9e8de;">Local prototype · mock/test data only · no accounts, no database, no uploads.</p>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var CATEGORIES = {
+    "Plastic": "Rinse bottles and containers, flatten them, and use the recycling bin. No bags or soft film plastics.",
+    "Organic": "Bag food scraps, keep bins closed, and put out on compost day. No liquids or plastics in the compost bin.",
+    "Paper": "Keep paper clean and dry. Flatten cardboard. Greasy or food-soiled paper goes in organic/general waste.",
+    "Glass": "Rinse bottles and jars. Wrap broken glass safely and label it. Light bulbs and mirrors need special drop-off.",
+    "Metal": "Rinse cans and tins. Empty aerosols. Large scrap metal goes to a collection point, not the kerbside bin.",
+    "E-waste": "Do not bin electronics or batteries. Take them to an e-waste drop-off point for safe handling.",
+    "Hazardous": "Do not bin chemicals, paint, or batteries. Seal, label, and take to a hazardous-waste collection point.",
+    "Mixed / General": "For mixed or unclear items: bag securely, keep the area tidy, and note details so crews can sort on arrival."
+  };
+
+  var CATEGORY_ORDER = ["Plastic", "Organic", "Paper", "Glass", "Metal", "E-waste", "Hazardous", "Mixed / General"];
+
+  // Mock/test data only. Fictional people and places.
+  var reports = [
+    { id: 1, nickname: "Park Runner", location: "Elm Park north entrance", category: "Plastic", description: "Overflowing recycling bin, bottles scattered around the bench area.", urgency: "Medium", status: "reported", date: "2026-09-25" },
+    { id: 2, nickname: "Maple Resident", location: "Maple St & 3rd Ave bus stop", category: "Organic", description: "Food-waste bin lid broken, bags piling up beside it.", urgency: "High", status: "acknowledged", date: "2026-09-24" },
+    { id: 3, nickname: "Riverside Walk", location: "River path near old bridge", category: "Glass", description: "Broken bottles on the footpath, needs careful cleanup.", urgency: "High", status: "in_progress", date: "2026-09-23" },
+    { id: 4, nickname: "Block C Rep", location: "Cedar Court bin room", category: "Paper", description: "Cardboard stacked outside the bin room after weekend clear-out.", urgency: "Low", status: "collected", date: "2026-09-22" },
+    { id: 5, nickname: "Night Owl", location: "Station Rd underpass", category: "Mixed / General", description: "Dumped black bags blocking part of the walkway.", urgency: "High", status: "reported", date: "2026-09-21" },
+    { id: 6, nickname: "Fix-it Fan", location: "Library car park corner", category: "E-waste", description: "Old printer and cables left beside the donation bank.", urgency: "Medium", status: "acknowledged", date: "2026-09-20" },
+    { id: 7, nickname: "Garden Club", location: "Community garden gate", category: "Metal", description: "Rusty bike frame and cans dumped by the gate.", urgency: "Low", status: "collected", date: "2026-09-18" },
+    { id: 8, nickname: "Concerned Parent", location: "School lane crossing", category: "Hazardous", description: "Paint tins left on the pavement, strong smell. Kept children away.", urgency: "High", status: "in_progress", date: "2026-09-17" },
+    { id: 9, nickname: "Jogger Jo", location: "Lake loop km marker 2", category: "Plastic", description: "Bin full after the weekend run event, wrappers on the grass.", urgency: "Medium", status: "collected", date: "2026-09-15" },
+    { id: 10, nickname: "Market Regular", location: "Saturday market square", category: "Organic", description: "Fruit waste spilling from the market compost point.", urgency: "Medium", status: "collected", date: "2026-09-13" }
+  ];
+  var nextId = 11;
+
+  var form = document.getElementById("report-form");
+  var locationInput = document.getElementById("location");
+  var categorySelect = document.getElementById("category");
+  var descriptionInput = document.getElementById("description");
+  var guidanceBox = document.getElementById("category-guidance");
+  var confirmationBox = document.getElementById("confirmation");
+  var summaryError = document.getElementById("form-summary-error");
+  var reportsList = document.getElementById("reports-list");
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function statusLabel(status) {
+    var map = {
+      reported: "Reported",
+      acknowledged: "Acknowledged",
+      in_progress: "In progress",
+      collected: "Collected"
+    };
+    return map[status] || status;
+  }
+
+  function setError(inputEl, errorEl, hasError) {
+    if (hasError) {
+      errorEl.classList.add("visible");
+      inputEl.setAttribute("aria-invalid", "true");
+    } else {
+      errorEl.classList.remove("visible");
+      inputEl.removeAttribute("aria-invalid");
+    }
+  }
+
+  function updateGuidance() {
+    var value = categorySelect.value;
+    if (value && CATEGORIES[value]) {
+      guidanceBox.innerHTML = "<strong>" + escapeHtml(value) + " — disposal guidance:</strong> " + escapeHtml(CATEGORIES[value]);
+    } else {
+      guidanceBox.textContent = "Select a category to see disposal guidance here.";
+    }
+  }
+
+  function renderStats() {
+    var total = reports.length;
+    var resolved = reports.filter(function (r) { return r.status === "collected"; }).length;
+    var pending = total - resolved;
+
+    var counts = {};
+    CATEGORY_ORDER.forEach(function (c) { counts[c] = 0; });
+    reports.forEach(function (r) {
+      if (counts[r.category] === undefined) counts[r.category] = 0;
+      counts[r.category] += 1;
+    });
+
+    var topCat = CATEGORY_ORDER[0];
+    CATEGORY_ORDER.forEach(function (c) {
+      if (counts[c] > counts[topCat]) topCat = c;
+    });
+
+    var resolvedPct = total ? Math.round((resolved / total) * 100) : 0;
+    var pendingPct = total ? Math.round((pending / total) * 100) : 0;
+    var topPct = total ? Math.round((counts[topCat] / total) * 100) : 0;
+    var highCount = reports.filter(function (r) { return r.urgency === "High" && r.status !== "collected"; }).length;
+
+    document.getElementById("stat-total").textContent = total;
+    document.getElementById("stat-resolved").textContent = resolved;
+    document.getElementById("stat-resolved-sub").textContent = resolvedPct + "% collection rate (mock)";
+    document.getElementById("stat-pending").textContent = pending;
+    document.getElementById("stat-pending-sub").textContent = "Includes " + highCount + " high-urgency (mock)";
+    document.getElementById("stat-top-label").textContent = "Top category: " + topCat;
+    document.getElementById("stat-top").textContent = counts[topCat];
+    document.getElementById("stat-top-sub").textContent = topPct + "% of reports (mock)";
+    document.getElementById("bar-resolved").style.width = resolvedPct + "%";
+    document.getElementById("bar-pending").style.width = pendingPct + "%";
+    document.getElementById("bar-top").style.width = topPct + "%";
+
+    var barsEl = document.getElementById("category-bars");
+    var max = 1;
+    CATEGORY_ORDER.forEach(function (c) { if (counts[c] > max) max = counts[c]; });
+    var html = "";
+    CATEGORY_ORDER.forEach(function (c) {
+      var w = Math.round((counts[c] / max) * 100);
+      html += '<div class="cat-row">' +
+        '<span class="cat-name">' + escapeHtml(c) + '</span>' +
+        '<div class="bar" aria-hidden="true"><span style="width:' + w + '%"></span></div>' +
+        '<span class="cat-count">' + counts[c] + '</span>' +
+        "</div>";
+    });
+    barsEl.innerHTML = html;
+  }
+
+  function renderReports(highlightId) {
+    var html = "";
+    reports.forEach(function (r) {
+      var isNew = r.id === highlightId;
+      html += '<article class="report-card' + (isNew ? " new" : "") + '">' +
+        '<div class="report-top">' +
+          "<span><span class='badge badge-cat'>" + escapeHtml(r.category) + "</span> " +
+          "<span class='badge badge-status-" + escapeHtml(r.status) + "'>" + escapeHtml(statusLabel(r.status)) + "</span></span>" +
+          "<span class='report-meta'>" + escapeHtml(r.date) + " · " + escapeHtml(r.urgency) + " urgency</span>" +
+        "</div>" +
+        "<h3>" + escapeHtml(r.location) + "</h3>" +
+        "<p class='report-desc'>" + escapeHtml(r.description) + "</p>" +
+        "<p class='report-meta'>Reported by " + escapeHtml(r.nickname || "Anonymous neighbour") + " · mock data</p>" +
+        "</article>";
+    });
+    reportsList.innerHTML = html;
+  }
+
+  function todayISO() {
+    var d = new Date();
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+
+  categorySelect.addEventListener("change", function () {
+    updateGuidance();
+    setError(categorySelect, document.getElementById("category-error"), false);
+  });
+  locationInput.addEventListener("input", function () {
+    setError(locationInput, document.getElementById("location-error"), false);
+  });
+  descriptionInput.addEventListener("input", function () {
+    setError(descriptionInput, document.getElementById("description-error"), false);
+  });
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    summaryError.classList.remove("visible");
+    confirmationBox.classList.remove("visible");
+
+    var location = locationInput.value.trim();
+    var category = categorySelect.value;
+    var description = descriptionInput.value.trim();
+    var nickname = document.getElementById("nickname").value.trim();
+    var urgencyEl = form.querySelector('input[name="urgency"]:checked');
+    var urgency = urgencyEl ? urgencyEl.value : "Low";
+
+    var locationOk = location.length >= 3;
+    var categoryOk = category !== "" && CATEGORIES[category] !== undefined;
+    var descOk = description.length >= 10;
+
+    setError(locationInput, document.getElementById("location-error"), !locationOk);
+    setError(categorySelect, document.getElementById("category-error"), !categoryOk);
+    setError(descriptionInput, document.getElementById("description-error"), !descOk);
+
+    if (!locationOk || !categoryOk || !descOk) {
+      var missing = [];
+      if (!locationOk) missing.push("location");
+      if (!categoryOk) missing.push("category");
+      if (!descOk) missing.push("description");
+      summaryError.textContent = "Please fix the highlighted fields: " + missing.join(", ") + ".";
+      summaryError.classList.add("visible");
+      summaryError.focus();
+      return;
+    }
+
+    var newReport = {
+      id: nextId++,
+      nickname: nickname || "Anonymous neighbour",
+      location: location,
+      category: category,
+      description: description,
+      urgency: urgency,
+      status: "reported",
+      date: todayISO()
+    };
+    reports.unshift(newReport);
+
+    renderReports(newReport.id);
+    renderStats();
+
+    confirmationBox.innerHTML = "<strong>Thank you — your waste report was received (mock).</strong>" +
+      "“" + escapeHtml(category) + "” at “" + escapeHtml(location) + "” is now at the top of Recent reports. Nothing was sent to a server.";
+    confirmationBox.classList.add("visible");
+    confirmationBox.focus();
+
+    form.reset();
+    updateGuidance();
+
+    document.getElementById("reports").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  updateGuidance();
+  renderStats();
+  renderReports(null);
+})();
+</script>
+
+</body>
+</html>
