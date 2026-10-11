@@ -741,5 +741,80 @@ if ("serviceWorker" in navigator) {
 }
 </script>
 
+  <!-- GREENBIN SUPABASE ACCOUNT CONNECTION -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+(function () {
+  const SUPABASE_URL = "PASTE_YOUR_PROJECT_URL_HERE";
+  const SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
+
+  const greenbinSupabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+  const signupForm = document.getElementById("signup-form");
+  const loginForm = document.getElementById("login-form");
+  const accountMessage = document.getElementById("account-message");
+
+  function showMessage(message) {
+    accountMessage.textContent = message;
+  }
+
+  signupForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const email = document.getElementById("signup-email").value.trim();
+    const password = document.getElementById("signup-password").value;
+
+    showMessage("Creating your account. Please wait...");
+
+    const { data, error } = await greenbinSupabase.auth.signUp({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      showMessage("Sign-up failed: " + error.message);
+      return;
+    }
+
+    if (data.session) {
+      showMessage("Account created successfully. You are signed in.");
+    } else {
+      showMessage(
+        "Account created. Please check your email to confirm your account before signing in."
+      );
+    }
+
+    signupForm.reset();
+  });
+
+  loginForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+
+    showMessage("Signing you in. Please wait...");
+
+    const { data, error } =
+      await greenbinSupabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+    if (error) {
+      showMessage("Sign-in failed: " + error.message);
+      return;
+    }
+
+    showMessage("Welcome back! You are signed in successfully.");
+    loginForm.reset();
+  });
+})();
+</script>
+<!-- END GREENBIN SUPABASE ACCOUNT CONNECTION -->
 </body>
 </html>
