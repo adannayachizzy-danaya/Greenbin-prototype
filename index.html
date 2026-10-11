@@ -654,6 +654,24 @@
   renderReports(null);
 })();
 </script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/service-worker.js")
+      .then(function (registration) {
+        console.log(
+          "GreenBin Service Worker registered:",
+          registration.scope
+        );
+      })
+      .catch(function (error) {
+        console.error(
+          "GreenBin Service Worker registration failed:",
+          error
+        );
+      });
+  });
+}
 
 </body>
 </html>
