@@ -1,15 +1,23 @@
-const CACHE_NAME = "greenbin-pwa-v1";
+const CACHE_NAME = "greenbin-pwa-v2";
 
 const APP_FILES = [
 "/",
 "/index.html",
-"/manifest.json"
+"/manifest.json",
+"/icon/icon-192.png",
+"/icon/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
 event.waitUntil(
-caches.open(CACHE_NAME).then((cache) => {
-return cache.addAll(APP_FILES);
+caches.open(CACHE_NAME).then(async (cache) => {
+for (const file of APP_FILES) {
+try {
+await cache.add(file);
+} catch (error) {
+console.warn("Could not cache:", file, error);
+}
+}
 })
 );
 
@@ -18,16 +26,14 @@ self.skipWaiting();
 
 self.addEventListener("activate", (event) => {
 event.waitUntil(
-caches.keys().then((cacheNames) => {
-return Promise.all(
+caches.keys().then((cacheNames) =>
+Promise.all(
 cacheNames
-.filter((name) => name !== CACHE_NAME)
+.filter((name) => name.startsWith("greenbin-pwa-") && name !== CACHE_NAME)
 .map((name) => caches.delete(name))
+)
+).then(() => self.clients.claim())
 );
-})
-);
-
-self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -47,9 +53,11 @@ fetch(event.request)
 if (response && response.ok) {
 const responseCopy = response.clone();
 
-      caches.open(CACHE_NAME).then((cache) => {
-        cache.put(event.request, responseCopy);
-      });
+      event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) =>
+          cache.put(event.request, responseCopy)
+        )
+      );
     }
 
     return response;
@@ -68,10 +76,15 @@ const responseCopy = response.clone();
       );
     }
 
-    return new Response("You are offline. Please try again later.", {
-      status: 503,
-      headers: { "Content-Type": "text/plain; charset=utf-8" }
-    });
+    return new Response(
+      "You are offline. Please try again later.",
+      {
+        status: 503,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8"
+        }
+      }
+    );
   })
 
 );
