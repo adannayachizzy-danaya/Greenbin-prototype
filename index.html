@@ -337,6 +337,71 @@
     <div class="mock-note" role="note">Mock/test data only — no real users, no database, no authentication, no uploads.</div>
   </section>
 
+ <!-- GREENBIN ACCOUNT SECTION -->
+<section class="block" id="account" aria-labelledby="account-heading">
+  <h2 id="account-heading">Your GreenBin Account</h2>
+  <p class="section-desc">
+    Create an account or sign in to submit and track your waste reports.
+  </p>
+
+  <div class="grid-2">
+    <form class="card" id="signup-form">
+      <h3>Create an account</h3>
+
+      <label for="signup-email">Email address</label>
+      <input
+        id="signup-email"
+        type="email"
+        autocomplete="email"
+        required
+      />
+
+      <label for="signup-password">Password</label>
+      <input
+        id="signup-password"
+        type="password"
+        autocomplete="new-password"
+        minlength="8"
+        required
+      />
+
+      <div class="btn-row" style="margin-top:1.5rem">
+        <button class="btn btn-primary" type="submit">
+          Sign Up
+        </button>
+      </div>
+    </form>
+
+    <form class="card" id="login-form">
+      <h3>Already have an account?</h3>
+
+      <label for="login-email">Email address</label>
+      <input
+        id="login-email"
+        type="email"
+        autocomplete="email"
+        required
+      />
+
+      <label for="login-password">Password</label>
+      <input
+        id="login-password"
+        type="password"
+        autocomplete="current-password"
+        required
+      />
+
+      <div class="btn-row" style="margin-top:1.5rem">
+        <button class="btn btn-primary" type="submit">
+          Sign In
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="confirmation" id="account-message" role="status" aria-live="polite"></div>
+</section>
+<!-- END GREENBIN ACCOUNT SECTION -->
   <!-- WASTE REPORTING FORM -->
   <section class="block" id="report" aria-labelledby="report-heading">
     <h2 id="report-heading">Report waste</h2>
