@@ -29,27 +29,34 @@
     };
   }
 
-  function wire(formId, action, emailId, passId) {
-    $(formId).addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const btn = e.target.querySelector("button[type=submit]");
-      btn.disabled = true;
-      try {
-        const data = await call(action, {
-          email: $(emailId).value,
-          password: $(passId).value,
-        });
-        e.target.reset();
-        showUser(data.user);
-      } catch (err) {
-        say("<strong>Sorry.</strong>" + esc(err.message));
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  }
+  const forms = {
+    "signup-form": { action: "signup", email: "signup-email", pass: "signup-password" },
+    "login-form": { action: "login", email: "login-email", pass: "login-password" },
+  };
 
-  wire("signup-form", "signup", "signup-email", "signup-password");
-  wire("login-form", "login", "login-email", "login-password");
+  // Capture phase: runs before the Supabase code and blocks it
+  document.addEventListener("submit", async (e) => {
+    const cfg = e.target && forms[e.target.id];
+    if (!cfg) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    say("Please wait...");
+    try {
+      const data = await call(cfg.action, {
+        email: $(cfg.email).value,
+        password: $(cfg.pass).value,
+      });
+      e.target.reset();
+      showUser(data.user);
+    } catch (err) {
+      say("<strong>Sorry.</strong> " + esc(err.message));
+    } finally {
+      btn.disabled = false;
+    }
+  }, true);
+
   call("me").then((d) => showUser(d.user)).catch(() => {});
 })();
