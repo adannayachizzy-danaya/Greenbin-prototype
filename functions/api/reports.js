@@ -7,21 +7,39 @@ const json = (data, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
-// GET /api/reports -> list reports + stats
-export async function onRequestGet({ env }) {
+async function currentUser(request, env) {
+  const m = (request.headers.get("Cookie") || "").match(/(?:^|;\s*)gb_session=([a-f0-9]+)/);
+  if (!m) return null;
+  return await env.DB
+    .prepare("SELECT u.id, u.email, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > datetime('now')")
+    .bind(m[1]).first();
+}
+
+export async function onRequestGet({ request, env }) {
+  const url = new URL(request.url);
+
+  if (url.searchParams.get("mine") === "1") {
+    const user = await currentUser(request, env);
+    if (!user) return json({ reports: [] });
+    const { results } = await env.DB
+      .prepare("SELECT id, nickname, location, category, description, urgency, status, created_at FROM reports WHERE user_id = ? ORDER BY id DESC LIMIT 100")
+      .bind(user.id).all();
+    return json({ reports: results });
+  }
+
   const { results } = await env.DB
     .prepare("SELECT id, nickname, location, category, description, urgency, status, created_at FROM reports ORDER BY id DESC LIMIT 100")
     .all();
-
   const stats = await env.DB
     .prepare("SELECT COUNT(*) AS total, SUM(status='Resolved') AS resolved, SUM(status!='Resolved') AS pending FROM reports")
     .first();
-
   return json({ reports: results, stats });
 }
 
-// POST /api/reports -> save a new report
 export async function onRequestPost({ request, env }) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: "Please sign in first to submit a report" }, 401);
+
   let body;
   try { body = await request.json(); }
   catch { return json({ error: "Invalid data" }, 400); }
@@ -37,8 +55,8 @@ export async function onRequestPost({ request, env }) {
   if (!CATEGORIES.includes(category)) return json({ error: "Bad category" }, 400);
 
   const result = await env.DB
-    .prepare("INSERT INTO reports (nickname, location, category, description, urgency) VALUES (?, ?, ?, ?, ?)")
-    .bind(nickname, location.slice(0, 120), category, description.slice(0, 1000), urgency)
+    .prepare("INSERT INTO reports (user_id, nickname, location, category, description, urgency) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(user.id, nickname, location.slice(0, 120), category, description.slice(0, 1000), urgency)
     .run();
 
   return json({ ok: true, id: result.meta.last_row_id }, 201);
