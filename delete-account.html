@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delete your GreenBin account</title>
+<style>
+  body{margin:0;font-family:-apple-system,Roboto,Arial,sans-serif;background:#f8faf7;color:#1a2b1f;line-height:1.6}
+  header{background:#14532d;color:#fff;padding:1rem 1.25rem}
+  header a{color:#fff}
+  main{max-width:480px;margin:0 auto;padding:1.25rem}
+  label{display:block;font-weight:700;margin:1rem 0 .35rem}
+  input[type=email],input[type=password]{width:100%;box-sizing:border-box;font:inherit;font-size:16px;border:2px solid #2f4536;border-radius:12px;padding:.8rem .9rem;min-height:50px}
+  button{width:100%;margin-top:1.3rem;min-height:52px;border:0;border-radius:14px;background:#991b1b;color:#fff;font:inherit;font-weight:800;font-size:1.05rem;cursor:pointer}
+  button:disabled{opacity:.6}
+  .msg{margin-top:1rem;padding:.8rem 1rem;border-radius:12px;font-weight:600;display:none}
+  .msg.err{display:block;background:#fee2e2;border:2px solid #991b1b;color:#5f0f0f}
+  .msg.ok{display:block;background:#dcfce7;border:2px solid #166534;color:#14532d}
+</style>
+</head>
+<body>
+<header><strong>GreenBin</strong> · <a href="/">Back to app</a></header>
+<main>
+<h1>Delete your account</h1>
+<p>This permanently deletes your GreenBin account, all your reports and your photos. It cannot be undone.</p>
+<form id="f">
+  <label for="e">Email address</label>
+  <input id="e" type="email" autocomplete="email" required>
+  <label for="p">Password</label>
+  <input id="p" type="password" autocomplete="current-password" required>
+  <button id="b" type="submit">Delete my account</button>
+  <div class="msg" id="m" role="status"></div>
+</form>
+<p style="margin-top:1.5rem">Forgot your password or need help? Contact <a href="mailto:your-email@example.com">your-email@example.com</a>.</p>
+</main>
+<script>
+document.getElementById("f").addEventListener("submit", function (ev) {
+  ev.preventDefault();
+  var b = document.getElementById("b"), m = document.getElementById("m");
+  b.disabled = true; b.textContent = "Deleting...";
+  m.className = "msg";
+  fetch("/api/account-delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: document.getElementById("e").value, password: document.getElementById("p").value })
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+  }).then(function (res) {
+    if (res.ok) {
+      m.textContent = "Your account and data have been deleted.";
+      m.className = "msg ok";
+      document.getElementById("f").reset();
+    } else {
+      m.textContent = res.d.error || "Something went wrong.";
+      m.className = "msg err";
+    }
+    b.disabled = false; b.textContent = "Delete my account";
+  }).catch(function () {
+    m.textContent = "Connection problem. Please try again.";
+    m.className = "msg err";
+    b.disabled = false; b.textContent = "Delete my account";
+  });
+});
+</script>
+</body>
+</html>
