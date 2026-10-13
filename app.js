@@ -48,14 +48,18 @@
     box.innerHTML = reports.map((r) => {
       const done = r.status === "Resolved";
       const when = new Date(String(r.created_at).replace(" ", "T") + "Z").toLocaleString();
+      const photo = r.photo_key
+        ? `<img src="/api/photo/${esc(r.photo_key)}" alt="Photo of reported waste" loading="lazy" style="width:100%;max-height:260px;object-fit:cover;border-radius:10px;margin-top:.75rem">`
+        : "";
       return `<article class="report-card">
         <div class="report-top">
           <span class="badge badge-cat">${esc(r.category)}</span>
-          <span class="badge ${done ? "badge-status-collected" : "badge-status-reported"}">${done ? "Collected" : "Reported"}</span>
+          <span class="badge ${done ? "badge-status-collected" : "badge-status-reported"}">${done ? "Collected" : esc(r.status === "In progress" ? "In progress" : "Reported")}</span>
         </div>
         <h3 style="font-size:1.05rem">${esc(r.location)}</h3>
         <p class="report-meta">Urgency: ${esc(r.urgency)} · ${esc(r.nickname || "Anonymous")} · ${esc(when)}</p>
         <p class="report-desc">${esc(r.description)}</p>
+        ${photo}
       </article>`;
     }).join("");
   }
@@ -74,7 +78,6 @@
     if (el) el.classList.toggle("visible", bad);
   }
 
-  // Runs BEFORE the old script's handler and replaces it
   document.addEventListener("submit", async (e) => {
     if (!e.target || e.target.id !== "report-form") return;
     e.preventDefault();
@@ -119,7 +122,6 @@
     }
   }, true);
 
-  // Update the old "mock data" wording
   const note = document.querySelector(".mock-note");
   if (note) note.textContent = "Live data from the GreenBin database.";
   const eyebrow = document.querySelector(".eyebrow");
