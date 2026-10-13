@@ -1,5 +1,6 @@
 const CATEGORIES = ["Plastic","Organic","Paper","Glass","Metal","E-waste","Hazardous","Mixed / General"];
 const URGENCIES = ["Low","Medium","High"];
+const COLS = "id, nickname, location, category, description, urgency, status, photo_key, created_at";
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -22,13 +23,13 @@ export async function onRequestGet({ request, env }) {
     const user = await currentUser(request, env);
     if (!user) return json({ reports: [] });
     const { results } = await env.DB
-      .prepare("SELECT id, nickname, location, category, description, urgency, status, created_at FROM reports WHERE user_id = ? ORDER BY id DESC LIMIT 100")
+      .prepare(`SELECT ${COLS} FROM reports WHERE user_id = ? ORDER BY id DESC LIMIT 100`)
       .bind(user.id).all();
     return json({ reports: results });
   }
 
   const { results } = await env.DB
-    .prepare("SELECT id, nickname, location, category, description, urgency, status, created_at FROM reports ORDER BY id DESC LIMIT 100")
+    .prepare(`SELECT ${COLS} FROM reports ORDER BY id DESC LIMIT 100`)
     .all();
   const stats = await env.DB
     .prepare("SELECT COUNT(*) AS total, SUM(status='Resolved') AS resolved, SUM(status!='Resolved') AS pending FROM reports")
@@ -49,14 +50,15 @@ export async function onRequestPost({ request, env }) {
   const category = String(body.category || "");
   const urgency = URGENCIES.includes(body.urgency) ? body.urgency : "Medium";
   const nickname = String(body.nickname || "").trim().slice(0, 40);
+  const photoKey = /^[a-f0-9]{32}\.jpg$/.test(String(body.photo_key || "")) ? body.photo_key : null;
 
   if (location.length < 3) return json({ error: "Location too short" }, 400);
   if (description.length < 10) return json({ error: "Description too short" }, 400);
   if (!CATEGORIES.includes(category)) return json({ error: "Bad category" }, 400);
 
   const result = await env.DB
-    .prepare("INSERT INTO reports (user_id, nickname, location, category, description, urgency) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(user.id, nickname, location.slice(0, 120), category, description.slice(0, 1000), urgency)
+    .prepare("INSERT INTO reports (user_id, nickname, location, category, description, urgency, photo_key) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(user.id, nickname, location.slice(0, 120), category, description.slice(0, 1000), urgency, photoKey)
     .run();
 
   return json({ ok: true, id: result.meta.last_row_id }, 201);
