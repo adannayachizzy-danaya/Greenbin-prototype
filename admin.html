@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GreenBin Admin</title>
+<style>
+  body { margin:0; font-family: -apple-system, Roboto, Arial, sans-serif; background:#f8faf7; color:#1a2b1f; line-height:1.5; }
+  header { background:#14532d; color:#fff; padding:1rem 1.25rem; }
+  header a { color:#fff; }
+  main { max-width:800px; margin:0 auto; padding:1.25rem; }
+  .card { background:#fff; border:2px solid #223527; border-radius:12px; padding:1rem; margin-bottom:1rem; }
+  .row { display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; align-items:center; }
+  .badge { font-size:.85rem; font-weight:800; padding:.2rem .7rem; border-radius:999px; background:#dcfce7; border:2px solid #166534; }
+  select, button { font:inherit; padding:.6rem .8rem; border-radius:8px; border:2px solid #2f4536; background:#fff; }
+  button { background:#166534; color:#fff; font-weight:800; cursor:pointer; }
+  .msg { padding:1rem; background:#fee2e2; border:2px solid #991b1b; border-radius:10px; }
+  .meta { color:#33463a; font-size:.92rem; }
+</style>
+</head>
+<body>
+<header><strong>GreenBin Admin</strong> · <a href="/">Back to site</a></header>
+<main id="app"><p>Loading...</p></main>
+
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const app = document.getElementById("app");
+
+async function load() {
+  const me = await (await fetch("/api/auth/me")).json();
+  if (!me.user) {
+    app.innerHTML = '<div class="msg">Please sign in on the <a href="/#account">main site</a> first, then come back here.</div>';
+    return;
+  }
+  if (me.user.role !== "admin") {
+    app.innerHTML = '<div class="msg">This page is for admins only.</div>';
+    return;
+  }
+  const data = await (await fetch("/api/reports")).json();
+  if (!data.reports.length) { app.innerHTML = "<p>No reports yet.</p>"; return; }
+
+  app.innerHTML = "<h2>All reports</h2>" + data.reports.map((r) => `
+    <div class="card">
+      <div class="row">
+        <span class="badge">${esc(r.category)}</span>
+        <span class="meta">#${r.id} · Urgency: ${esc(r.urgency)}</span>
+      </div>
+      <h3>${esc(r.location)}</h3>
+      <p>${esc(r.description)}</p>
+      <div class="row">
+        <select id="s-${r.id}">
+          ${["Pending","In progress","Resolved"].map((s) =>
+            `<option ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}
+        </select>
+        <button onclick="save(${r.id})">Save</button>
+      </div>
+      <p class="meta" id="m-${r.id}"></p>
+    </div>`).join("");
+}
+
+async function save(id) {
+  const status = document.getElementById("s-" + id).value;
+  const note = document.getElementById("m-" + id);
+  note.textContent = "Saving...";
+  const res = await fetch("/api/admin/" + id, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  const out = await res.json().catch(() => ({}));
+  note.textContent = res.ok ? "Saved ✓" : (out.error || "Failed");
+}
+
+load().catch(() => { app.innerHTML = '<div class="msg">Something went wrong. Please refresh.</div>'; });
+</script>
+</body>
+</html>
