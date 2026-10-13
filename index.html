@@ -830,5 +830,10 @@ if ("serviceWorker" in navigator) {
 <script src="/my-reports.js" defer></script>
 <script src="/photo-ui.js" defer></script>
 <script src="/map-ui.js" defer></script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/Service-worker.js"));
+}
+</script>
 </body>
 </html>
