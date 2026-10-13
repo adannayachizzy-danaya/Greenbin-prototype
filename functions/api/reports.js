@@ -1,6 +1,6 @@
 const CATEGORIES = ["Plastic","Organic","Paper","Glass","Metal","E-waste","Hazardous","Mixed / General"];
 const URGENCIES = ["Low","Medium","High"];
-const COLS = "id, nickname, location, category, description, urgency, status, photo_key, created_at";
+const COLS = "id, nickname, location, category, description, urgency, status, photo_key, lat, lng, created_at";
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -57,13 +57,19 @@ export async function onRequestPost({ request, env }) {
     const nickname = String(body.nickname || "").trim().slice(0, 40);
     const photoKey = /^[a-f0-9]{32}\.jpg$/.test(String(body.photo_key || "")) ? body.photo_key : null;
 
+    const lat = Number(body.lat);
+    const lng = Number(body.lng);
+    const hasGeo = body.lat != null && body.lng != null &&
+      isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+
     if (location.length < 3) return json({ error: "Location too short" }, 400);
     if (description.length < 10) return json({ error: "Description too short" }, 400);
     if (!CATEGORIES.includes(category)) return json({ error: "Bad category" }, 400);
 
     const result = await env.DB
-      .prepare("INSERT INTO reports (user_id, nickname, location, category, description, urgency, photo_key) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .bind(user.id, nickname, location.slice(0, 120), category, description.slice(0, 1000), urgency, photoKey)
+      .prepare("INSERT INTO reports (user_id, nickname, location, category, description, urgency, photo_key, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(user.id, nickname, location.slice(0, 120), category, description.slice(0, 1000), urgency, photoKey,
+            hasGeo ? lat : null, hasGeo ? lng : null)
       .run();
 
     return json({ ok: true, id: result.meta.last_row_id }, 201);
