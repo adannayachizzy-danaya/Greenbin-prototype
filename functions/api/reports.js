@@ -1,65 +1,52 @@
-const CATEGORIES = ["Plastic","Organic","Paper","Glass","Metal","E-waste","Hazardous","Mixed / General"];
-const URGENCIES = ["Low","Medium","High"];
-const COLS = "id, nickname, location, category, description, urgency, status, photo_key, created_at";
+(function () {
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+  const anchor = document.getElementById("reports");
+  if (!anchor) return;
 
-async function currentUser(request, env) {
-  const m = (request.headers.get("Cookie") || "").match(/(?:^|;\s*)gb_session=([a-f0-9]+)/);
-  if (!m) return null;
-  return await env.DB
-    .prepare("SELECT u.id, u.email, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > datetime('now')")
-    .bind(m[1]).first();
-}
+  const sec = document.createElement("section");
+  sec.className = "block";
+  sec.id = "my-reports";
+  sec.hidden = true;
+  sec.innerHTML =
+    '<h2>My reports</h2><p class="section-desc">Reports you submitted while signed in.</p>' +
+    '<div id="my-list" style="display:grid;gap:1.25rem;margin-top:1.5rem"></div>';
+  anchor.insertAdjacentElement("afterend", sec);
 
-export async function onRequestGet({ request, env }) {
-  const url = new URL(request.url);
-
-  if (url.searchParams.get("mine") === "1") {
-    const user = await currentUser(request, env);
-    if (!user) return json({ reports: [] });
-    const { results } = await env.DB
-      .prepare(`SELECT ${COLS} FROM reports WHERE user_id = ? ORDER BY id DESC LIMIT 100`)
-      .bind(user.id).all();
-    return json({ reports: results });
+  async function refresh() {
+    try {
+      const me = await (await fetch("/api/auth/me")).json();
+      if (!me.user) { sec.hidden = true; return; }
+      const data = await (await fetch("/api/reports?mine=1")).json();
+      const list = document.getElementById("my-list");
+      sec.hidden = false;
+      if (!data.reports.length) {
+        list.innerHTML = '<div class="report-card">You have not submitted any reports yet.</div>';
+        return;
+      }
+      list.innerHTML = data.reports.map((r) => {
+        const done = r.status === "Resolved";
+        const when = new Date(String(r.created_at).replace(" ", "T") + "Z").toLocaleString();
+        const photo = r.photo_key
+          ? '<img src="/api/photo/' + esc(r.photo_key) + '" alt="Photo of reported waste" loading="lazy" style="width:100%;max-height:260px;object-fit:cover;border-radius:10px;margin-top:.75rem">'
+          : "";
+        return '<article class="report-card">' +
+          '<div class="report-top"><span class="badge badge-cat">' + esc(r.category) + '</span>' +
+          '<span class="badge ' + (done ? "badge-status-collected" : "badge-status-reported") + '">' +
+          (done ? "Collected" : esc(r.status === "In progress" ? "In progress" : "Reported")) + '</span></div>' +
+          '<h3 style="font-size:1.05rem">' + esc(r.location) + '</h3>' +
+          '<p class="report-meta">Urgency: ' + esc(r.urgency) + " · " + esc(when) + '</p>' +
+          '<p class="report-desc">' + esc(r.description) + '</p>' + photo + '</article>';
+      }).join("");
+    } catch (e) { console.error(e); }
   }
 
-  const { results } = await env.DB
-    .prepare(`SELECT ${COLS} FROM reports ORDER BY id DESC LIMIT 100`)
-    .all();
-  const stats = await env.DB
-    .prepare("SELECT COUNT(*) AS total, SUM(status='Resolved') AS resolved, SUM(status!='Resolved') AS pending FROM reports")
-    .first();
-  return json({ reports: results, stats });
-}
+  ["account-message", "confirmation"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) new MutationObserver(refresh).observe(el, { childList: true, subtree: true, characterData: true });
+  });
 
-export async function onRequestPost({ request, env }) {
-  const user = await currentUser(request, env);
-  if (!user) return json({ error: "Please sign in first to submit a report" }, 401);
-
-  let body;
-  try { body = await request.json(); }
-  catch { return json({ error: "Invalid data" }, 400); }
-
-  const location = String(body.location || "").trim();
-  const description = String(body.description || "").trim();
-  const category = String(body.category || "");
-  const urgency = URGENCIES.includes(body.urgency) ? body.urgency : "Medium";
-  const nickname = String(body.nickname || "").trim().slice(0, 40);
-  const photoKey = /^[a-f0-9]{32}\.jpg$/.test(String(body.photo_key || "")) ? body.photo_key : null;
-
-  if (location.length < 3) return json({ error: "Location too short" }, 400);
-  if (description.length < 10) return json({ error: "Description too short" }, 400);
-  if (!CATEGORIES.includes(category)) return json({ error: "Bad category" }, 400);
-
-  const result = await env.DB
-    .prepare("INSERT INTO reports (user_id, nickname, location, category, description, urgency, photo_key) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(user.id, nickname, location.slice(0, 120), category, description.slice(0, 1000), urgency, photoKey)
-    .run();
-
-  return json({ ok: true, id: result.meta.last_row_id }, 201);
-}
+  refresh();
+})();
