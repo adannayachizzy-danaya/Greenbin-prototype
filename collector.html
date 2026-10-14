@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<title>GreenBin Collector</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Roboto,Arial,sans-serif;background:#f8faf7;color:#1a2b1f;line-height:1.5;padding-bottom:2rem}
+  header{position:sticky;top:0;z-index:10;background:#14532d;color:#fff;padding:calc(.8rem + env(safe-area-inset-top)) 1rem .8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+  header a{color:#fff;font-weight:700}
+  main{max-width:640px;margin:0 auto;padding:1rem}
+  .who{margin:.2rem 0 1rem;color:#33463a;font-size:.95rem}
+  .tabs{display:flex;background:#e4ece6;border-radius:14px;padding:4px;margin-bottom:1rem}
+  .tabs button{flex:1;border:0;background:none;font:inherit;font-weight:800;color:#33463a;padding:.7rem;border-radius:11px;cursor:pointer}
+  .tabs button.on{background:#fff;color:#14532d;box-shadow:0 1px 4px rgba(16,28,20,.15)}
+  .card{background:#fff;border:1px solid #dbe5dd;border-radius:16px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(16,28,20,.08)}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}
+  .badge{font-size:.85rem;font-weight:800;padding:.2rem .7rem;border-radius:999px;border:2px solid #166534;background:#dcfce7;color:#14532d}
+  .badge.high{border-color:#991b1b;background:#fee2e2;color:#7f1d1d}
+  .badge.med{border-color:#a16207;background:#fefce8;color:#713f12}
+  h3{margin:.6rem 0 .3rem;font-size:1.1rem}
+  .meta{color:#33463a;font-size:.9rem;margin:.2rem 0}
+  .photo{width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin:.6rem 0}
+  .btns{display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap}
+  .btns a,.btns button{flex:1;min-width:140px;min-height:50px;border-radius:14px;font:inherit;font-weight:800;font-size:1rem;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .nav{background:#fff;color:#14532d!important;border:2px solid #166534}
+  .go{background:#166534;color:#fff;border:0}
+  .done{background:#fff;color:#33463a;border:2px solid #9db0a2}
+  button:disabled{opacity:.6}
+  .msg{padding:1rem;background:#fee2e2;border:2px solid #991b1b;border-radius:12px;color:#5f0f0f;font-weight:600}
+  .empty{text-align:center;color:#33463a;padding:2rem 1rem}
+</style>
+</head>
+<body>
+<header><strong>My collection jobs</strong><a href="/">Back to app</a></header>
+<main id="app"><p>Loading...</p></main>
+
+<script>
+var esc = function (s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+};
+var app = document.getElementById("app");
+var jobs = [], tab = "todo", me = null;
+
+function when(s) {
+  if (!s) return "";
+  return new Date(String(s).replace(" ", "T") + "Z").toLocaleString();
+}
+
+function mapLink(j) {
+  if (j.lat != null && j.lng != null) {
+    return "https://www.google.com/maps/dir/?api=1&destination=" + j.lat + "," + j.lng;
+  }
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(j.location);
+}
+
+function card(j) {
+  var u = String(j.urgency);
+  var cls = u === "High" ? "high" : (u === "Medium" ? "med" : "");
+  var action = "";
+  if (me.role === "collector") {
+    if (j.status === "Pending") {
+      action = '<button class="go" onclick="setStatus(' + j.id + ',\'In progress\',this)">Start job</button>';
+    } else if (j.status === "In progress") {
+      action = '<button class="go" onclick="setStatus(' + j.id + ',\'Resolved\',this)">Mark collected</button>';
+    } else {
+      action = '<button class="done" onclick="setStatus(' + j.id + ',\'Pending\',this)">Reopen</button>';
+    }
+  }
+  return '<div class="card">' +
+    '<div class="row"><span class="badge">' + esc(j.category) + '</span>' +
+    '<span class="badge ' + cls + '">' + esc(u) + ' urgency</span></div>' +
+    '<h3>' + esc(j.location) + '</h3>' +
+    '<p>' + esc(j.description) + '</p>' +
+    (j.photo_key ? '<img class="photo" loading="lazy" alt="Photo of reported waste" src="/api/photo/' + esc(j.photo_key) + '">' : "") +
+    '<p class="meta">Status: <strong>' + esc(j.status) + '</strong></p>' +
+    '<p class="meta">Assigned: ' + esc(when(j.assigned_at)) + '</p>' +
+    (j.collected_at ? '<p class="meta">Collected: ' + esc(when(j.collected_at)) + '</p>' : "") +
+    '<div class="btns"><a class="nav" target="_blank" rel="noopener" href="' + esc(mapLink(j)) + '">Open in Maps</a>' + action + '</div>' +
+    '<p class="meta" id="m-' + j.id + '"></p></div>';
+}
+
+function render() {
+  var todo = jobs.filter(function (j) { return j.status !== "Resolved"; });
+  var done = jobs.filter(function (j) { return j.status === "Resolved"; });
+  var list = tab === "todo" ? todo : done;
+  app.innerHTML =
+    '<p class="who">Signed in as ' + esc(me.email) + '</p>' +
+    '<div class="tabs"><button class="' + (tab === "todo" ? "on" : "") + '" onclick="show(\'todo\')">To do (' + todo.length + ')</button>' +
+    '<button class="' + (tab === "done" ? "on" : "") + '" onclick="show(\'done\')">Done (' + done.length + ')</button></div>' +
+    (list.length ? list.map(card).join("") :
+      '<div class="empty">' + (tab === "todo" ? "No open jobs. New assignments will appear here." : "No completed jobs yet.") + '</div>');
+}
+
+function show(t) { tab = t; render(); }
+
+function setStatus(id, status, btn) {
+  btn.disabled = true;
+  var note = document.getElementById("m-" + id);
+  if (note) note.textContent = "Saving...";
+  fetch("/api/jobs", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: id, status: status })
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+  }).then(function (res) {
+    if (res.ok) { load(); return; }
+    if (note) note.textContent = res.d.error || "Could not save";
+    btn.disabled = false;
+  }).catch(function () {
+    if (note) note.textContent = "Connection problem";
+    btn.disabled = false;
+  });
+}
+
+function load() {
+  fetch("/api/jobs", { cache: "no-store" }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, d: d }; });
+  }).then(function (res) {
+    if (res.status === 401) {
+      app.innerHTML = '<div class="msg">Please sign in on the <a href="/">main app</a> first, then come back here.</div>';
+      return;
+    }
+    if (res.status === 403) {
+      app.innerHTML = '<div class="msg">This page is for collectors. Ask the GreenBin admin to give your account the collector role.</div>';
+      return;
+    }
+    if (!res.d.jobs) {
+      app.innerHTML = '<div class="msg">' + esc(res.d.error || "Could not load jobs") + '</div>';
+      return;
+    }
+    me = res.d.user;
+    jobs = res.d.jobs;
+    render();
+  }).catch(function () {
+    app.innerHTML = '<div class="msg">Connection problem. Please refresh.</div>';
+  });
+}
+load();
+</script>
+</body>
+</html>
