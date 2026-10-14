@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "dev.pages.greenbin_prototype.twa",
+        "sha256_cert_fingerprints": ["0A:95:7C:98:B7:BE:56:F6:8A:66:04:9C:88:E7:9B:92:0D:74:7C:01:D9:A1:98:79:E2:FC:A1:DA:73:EE:F7:61"]
+      }
+    }]
