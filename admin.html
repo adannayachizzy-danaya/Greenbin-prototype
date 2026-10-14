@@ -9,39 +9,52 @@
   header { background:#14532d; color:#fff; padding:1rem 1.25rem; }
   header a { color:#fff; }
   main { max-width:800px; margin:0 auto; padding:1.25rem; }
-  .card { background:#fff; border:2px solid #223527; border-radius:12px; padding:1rem; margin-bottom:1rem; }
+  .card { background:#fff; border:1px solid #dbe5dd; border-radius:16px; padding:1rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(16,28,20,.08); }
   .row { display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; align-items:center; }
   .badge { font-size:.85rem; font-weight:800; padding:.2rem .7rem; border-radius:999px; background:#dcfce7; border:2px solid #166534; }
-  select, button { font:inherit; padding:.6rem .8rem; border-radius:8px; border:2px solid #2f4536; background:#fff; }
-  button { background:#166534; color:#fff; font-weight:800; cursor:pointer; }
+  label { display:block; font-weight:700; font-size:.9rem; margin:.8rem 0 .3rem; }
+  select, button { font:inherit; font-size:16px; padding:.7rem .8rem; border-radius:10px; border:2px solid #2f4536; background:#fff; width:100%; box-sizing:border-box; }
+  button { background:#166534; color:#fff; font-weight:800; cursor:pointer; margin-top:.9rem; min-height:48px; }
+  button:disabled { opacity:.6; }
   .msg { padding:1rem; background:#fee2e2; border:2px solid #991b1b; border-radius:10px; }
   .meta { color:#33463a; font-size:.92rem; }
   .photo { width:100%; max-height:260px; object-fit:cover; border-radius:10px; margin:.5rem 0; }
+  .hint { padding:.8rem 1rem; background:#fef3c7; border:2px solid #92400e; border-radius:10px; margin-bottom:1rem; }
 </style>
 </head>
 <body>
-<header><strong>GreenBin Admin</strong> · <a href="/">Back to site</a></header>
+<header><strong>GreenBin Admin</strong> · <a href="/">Back to app</a></header>
 <main id="app"><p>Loading...</p></main>
 
 <script>
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const app = document.getElementById("app");
+let collectors = [];
 
 async function load() {
-  const me = await (await fetch("/api/auth/me")).json();
+  const me = await (await fetch("/api/auth/me", { cache: "no-store" })).json();
   if (!me.user) {
-    app.innerHTML = '<div class="msg">Please sign in on the <a href="/#account">main site</a> first, then come back here.</div>';
+    app.innerHTML = '<div class="msg">Please sign in on the <a href="/">main app</a> first, then come back here.</div>';
     return;
   }
   if (me.user.role !== "admin") {
     app.innerHTML = '<div class="msg">This page is for admins only.</div>';
     return;
   }
-  const data = await (await fetch("/api/reports")).json();
+
+  const cRes = await fetch("/api/collectors", { cache: "no-store" });
+  collectors = cRes.ok ? (await cRes.json()).collectors : [];
+
+  const rRes = await fetch("/api/admin/reports", { cache: "no-store" });
+  const data = await rRes.json();
+  if (!rRes.ok) { app.innerHTML = '<div class="msg">' + esc(data.error || "Could not load reports") + '</div>'; return; }
   if (!data.reports.length) { app.innerHTML = "<p>No reports yet.</p>"; return; }
 
-  app.innerHTML = "<h2>All reports</h2>" + data.reports.map((r) => `
+  const hint = collectors.length ? "" :
+    '<div class="hint">No collectors yet. In the D1 console set a user\'s role to \'collector\' to assign reports.</div>';
+
+  app.innerHTML = hint + "<h2>All reports</h2>" + data.reports.map((r) => `
     <div class="card">
       <div class="row">
         <span class="badge">${esc(r.category)}</span>
@@ -50,28 +63,42 @@ async function load() {
       <h3>${esc(r.location)}</h3>
       <p>${esc(r.description)}</p>
       ${r.photo_key ? `<img class="photo" src="/api/photo/${esc(r.photo_key)}" alt="Photo of reported waste" loading="lazy">` : ""}
-      <div class="row">
-        <select id="s-${r.id}">
-          ${["Pending","In progress","Resolved"].map((s) =>
-            `<option ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}
-        </select>
-        <button onclick="save(${r.id})">Save</button>
-      </div>
+      <p class="meta">${r.assignee_email ? "Assigned to " + esc(r.assignee_email) : "Not assigned"}${r.collected_at ? " · Collected " + esc(r.collected_at) : ""}</p>
+      <label for="s-${r.id}">Status</label>
+      <select id="s-${r.id}">
+        ${["Pending","In progress","Resolved"].map((s) =>
+          `<option ${s === r.status ? "selected" : ""}>${s}</option>`).join("")}
+      </select>
+      <label for="c-${r.id}">Assign to collector</label>
+      <select id="c-${r.id}">
+        <option value="">Unassigned</option>
+        ${collectors.map((c) =>
+          `<option value="${c.id}" ${c.id === r.assigned_to ? "selected" : ""}>${esc(c.email)}</option>`).join("")}
+      </select>
+      <button id="b-${r.id}" onclick="save(${r.id})">Save</button>
       <p class="meta" id="m-${r.id}"></p>
     </div>`).join("");
 }
 
 async function save(id) {
   const status = document.getElementById("s-" + id).value;
+  const assigned = document.getElementById("c-" + id).value;
   const note = document.getElementById("m-" + id);
+  const btn = document.getElementById("b-" + id);
+  btn.disabled = true;
   note.textContent = "Saving...";
-  const res = await fetch("/api/admin/" + id, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
-  });
-  const out = await res.json().catch(() => ({}));
-  note.textContent = res.ok ? "Saved ✓" : (out.error || "Failed");
+  try {
+    const res = await fetch("/api/admin/" + id, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, assigned_to: assigned === "" ? null : Number(assigned) }),
+    });
+    const out = await res.json().catch(() => ({}));
+    note.textContent = res.ok ? "Saved ✓" : (out.error || "Failed");
+  } catch (e) {
+    note.textContent = "Connection problem";
+  }
+  btn.disabled = false;
 }
 
 load().catch(() => { app.innerHTML = '<div class="msg">Something went wrong. Please refresh.</div>'; });
