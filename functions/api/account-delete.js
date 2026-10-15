@@ -54,6 +54,8 @@ export async function onRequestPost({ request, env }) {
       env.DB.prepare("DELETE FROM photos WHERE key IN (SELECT photo_key FROM reports WHERE user_id = ? AND photo_key IS NOT NULL)").bind(user.id),
       env.DB.prepare("DELETE FROM reports WHERE user_id = ?").bind(user.id),
       env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id),
+     env.DB.prepare("DELETE FROM listings WHERE user_id = ?").bind(user.id),
+      env.DB.prepare("UPDATE listings SET status = 'Open', claimed_by = NULL, claimed_at = NULL WHERE claimed_by = ? AND status = 'Claimed'").bind(user.id),
       env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id),
     ]);
 
