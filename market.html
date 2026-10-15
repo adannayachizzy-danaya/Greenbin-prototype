@@ -17,9 +17,10 @@
   .tabs button.on{background:#fff;color:#14532d;box-shadow:0 1px 4px rgba(16,28,20,.15)}
   .card{background:#fff;border:1px solid #dbe5dd;border-radius:16px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(16,28,20,.08)}
   .row{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}
+  .chips{display:flex;gap:.4rem;flex-wrap:wrap}
   .badge{font-size:.85rem;font-weight:800;padding:.2rem .7rem;border-radius:999px;border:2px solid #166534;background:#dcfce7;color:#14532d}
-  .badge.st-Claimed{border-color:#a16207;background:#fefce8;color:#713f12}
-  .badge.st-Completed{border-color:#166534;background:#dcfce7;color:#14532d}
+  .badge.warn{border-color:#a16207;background:#fefce8;color:#713f12}
+  .badge.st-Offered,.badge.st-Claimed{border-color:#a16207;background:#fefce8;color:#713f12}
   .badge.st-Cancelled{border-color:#6b7280;background:#f3f4f6;color:#374151}
   h3{margin:.6rem 0 .3rem;font-size:1.1rem}
   .meta{color:#33463a;font-size:.92rem;margin:.2rem 0}
@@ -34,10 +35,12 @@
   .msg{padding:1rem;background:#fee2e2;border:2px solid #991b1b;border-radius:12px;color:#5f0f0f;font-weight:600}
   .empty{text-align:center;color:#33463a;padding:2rem 1rem}
   .priv{background:#f0fdf4;border:2px solid #166534;border-radius:12px;padding:.6rem .8rem;margin-top:.6rem;font-size:.95rem}
+  .priv.offer{background:#fefce8;border-color:#a16207}
   #fab{position:fixed;right:1rem;bottom:calc(1rem + env(safe-area-inset-bottom));z-index:20;background:#166534;color:#fff;border:0;border-radius:999px;padding:.95rem 1.3rem;font:inherit;font-weight:800;font-size:1rem;box-shadow:0 4px 14px rgba(20,83,45,.4);cursor:pointer}
   #sell{display:none}
   #sell label{display:block;font-weight:700;margin:.9rem 0 .3rem;font-size:.95rem}
   #sell input,#sell select{width:100%;font:inherit;font-size:16px;border:2px solid #2f4536;border-radius:12px;padding:.75rem .9rem;min-height:48px;background:#fff;color:#101c14}
+  #sell input:disabled{background:#eef2ee;color:#6b7a70}
   #sell .small{font-weight:400;color:#33463a;font-size:.85rem}
   #sell .err{display:none;margin-top:.8rem;padding:.7rem .9rem;background:#fee2e2;border:2px solid #991b1b;border-radius:12px;color:#5f0f0f;font-weight:600}
   #sell .err.on{display:block}
@@ -56,17 +59,19 @@
         <option value="">Select a category</option>
         <option>Plastic</option><option>Paper / Cardboard</option><option>Glass</option>
         <option>Metal</option><option>E-waste</option><option>Other</option>
+        <option>Unsorted / Mixed</option>
       </select>
+      <p class="meta" id="s-cat-note">Sorted waste usually earns more. Mixed waste is flagged as unsorted, and collectors will make you an offer.</p>
       <label for="s-qty">Quantity</label>
       <input id="s-qty" type="text" maxlength="40" placeholder="e.g. 20 kg or 3 bags">
-      <label for="s-price">Asking price in ₦ <span class="small">(leave empty to negotiate, 0 for free)</span></label>
+      <label for="s-price">Asking price in ₦ <span class="small">(empty = collector offers, 0 = free)</span></label>
       <input id="s-price" type="number" inputmode="numeric" min="0" placeholder="e.g. 1500">
       <label for="s-loc">Area <span class="small">(area or landmark only, not your house address)</span></label>
       <input id="s-loc" type="text" maxlength="120" placeholder="e.g. Ila Oregun, near the junction">
-      <label>Exact pin <span class="small">(shared only with the collector who claims it)</span></label>
+      <label>Exact pin <span class="small">(shared only with the collector after you agree)</span></label>
       <button type="button" id="s-geo" class="done" style="width:100%;min-height:48px;border-radius:12px;font:inherit;font-weight:800">Use my current location</button>
       <p class="meta" id="s-geo-note"></p>
-      <label for="s-phone">Phone / WhatsApp <span class="small">(optional, shared only with the collector who claims it)</span></label>
+      <label for="s-phone">Phone / WhatsApp <span class="small">(optional, shared only after you agree)</span></label>
       <input id="s-phone" type="tel" maxlength="30" placeholder="e.g. 0803 000 0000">
       <label for="s-photo">Photo <span class="small">(optional)</span></label>
       <input id="s-photo" type="file" accept="image/*">
@@ -88,50 +93,69 @@ var esc = function (s) {
   });
 };
 var app = document.getElementById("app");
-var items = [], role = null, tab = "browse", geo = null, signedIn = false;
+var items = [], role = null, tab = "browse", geo = null;
+var UNSORTED = "Unsorted / Mixed";
 
-function money(p) {
-  if (p == null) return "Price: negotiable";
-  if (p === 0) return "Free";
-  return "₦" + Number(p).toLocaleString();
+function naira(p) { return p === 0 ? "Free" : "₦" + Number(p).toLocaleString(); }
+function priceLine(i) {
+  if (!i.sorted) return "Unsorted: collector will offer a price";
+  if (i.price == null) return "Collector will offer a price";
+  return "Asking " + naira(i.price);
 }
 function mapLink(i) {
   if (i.lat != null && i.lng != null) return "https://www.google.com/maps/dir/?api=1&destination=" + i.lat + "," + i.lng;
   return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(i.location);
 }
-function btn(id, action, label, cls) {
-  return '<button class="' + cls + '" onclick="act(' + id + ',\'' + action + '\',this)">' + label + '</button>';
+function btn(id, action, label, cls, extra) {
+  return '<button class="' + cls + '" onclick="act(' + id + ',\'' + action + '\',this' + (extra ? ',' + extra : '') + ')">' + label + '</button>';
 }
 
 function card(i) {
-  var h = '<div class="card"><div class="row"><span class="badge">' + esc(i.category) + '</span>' +
+  var h = '<div class="card"><div class="row"><div class="chips"><span class="badge">' + esc(i.category) + '</span>' +
+    '<span class="badge ' + (i.sorted ? "" : "warn") + '">' + (i.sorted ? "Sorted" : "Unsorted") + '</span></div>' +
     '<span class="badge st-' + esc(i.status) + '">' + esc(i.status) + '</span></div>' +
     '<h3>' + esc(i.title) + '</h3>' +
-    '<p class="meta"><strong>' + esc(i.quantity) + '</strong> · ' + esc(money(i.price)) + '</p>' +
+    '<p class="meta"><strong>' + esc(i.quantity) + '</strong> · ' + esc(priceLine(i)) + '</p>' +
     '<p class="meta">Area: ' + esc(i.location) + '</p>';
   if (i.photo_key) h += '<img class="photo" loading="lazy" alt="Photo of recyclables" src="/api/photo/' + esc(i.photo_key) + '">';
 
-  if (i.mine && i.claimer_email && i.status !== "Cancelled") {
-    h += '<div class="priv">Claimed by <strong>' + esc(i.claimer_email) + '</strong>. They may contact you at the number you gave.</div>';
-  }
-  if (i.claimed_by_me && i.status !== "Cancelled") {
-    h += '<div class="priv">Seller contact: <strong>' + esc(i.contact || "not provided") + '</strong></div>';
+  if (i.agreed_price != null && (i.status === "Claimed" || i.status === "Completed")) {
+    h += '<p class="meta">Agreed price: <strong>' + esc(naira(i.agreed_price)) + '</strong></p>';
   }
 
   var b = "";
+
   if (i.mine) {
-    if (i.status === "Claimed") b += btn(i.id, "complete", "Mark completed", "go");
-    if (i.status === "Open" || i.status === "Claimed") b += btn(i.id, "cancel", "Cancel listing", "done");
-  } else if (i.claimed_by_me) {
+    if (i.status === "Offered") {
+      h += '<div class="priv offer">Offer: <strong>' + esc(naira(i.offer_price)) + '</strong> from ' +
+        esc(i.claimer_name || i.claimer_email || "a collector") + '</div>';
+      b += btn(i.id, "accept", "Accept offer", "go") + btn(i.id, "reject", "Decline", "done");
+    }
     if (i.status === "Claimed") {
+      h += '<div class="priv">Collector: <strong>' + esc(i.claimer_name || i.claimer_email) + '</strong>' +
+        (i.claimer_phone ? ' · <a href="tel:' + esc(String(i.claimer_phone).replace(/[^0-9+]/g, "")) + '">' + esc(i.claimer_phone) + '</a>' : "") + '</div>';
+      b += btn(i.id, "complete", "Mark completed", "go");
+    }
+    if (i.status === "Open" || i.status === "Offered" || i.status === "Claimed") {
+      b += btn(i.id, "cancel", "Cancel listing", "done");
+    }
+  } else if (i.claimed_by_me) {
+    if (i.status === "Offered") {
+      h += '<div class="priv offer">Your offer: <strong>' + esc(naira(i.offer_price)) + '</strong>. Waiting for the seller to accept.</div>';
+      b += btn(i.id, "release", "Withdraw offer", "done");
+    }
+    if (i.status === "Claimed") {
+      h += '<div class="priv">Seller: <strong>' + esc(i.seller_name || "Household") + '</strong> · ' + esc(i.contact || "no phone given") + '</div>';
       b += '<a class="nav" target="_blank" rel="noopener" href="' + esc(mapLink(i)) + '">Open in Maps</a>';
       b += btn(i.id, "release", "Release", "done");
     }
   } else if (i.status === "Open" && role === "collector") {
-    b += btn(i.id, "claim", "Claim pickup", "go");
-  } else if (role === "admin" && (i.status === "Open" || i.status === "Claimed")) {
+    var direct = i.sorted && i.price != null;
+    b += btn(i.id, "claim", direct ? "Claim at " + esc(naira(i.price)) : "Make an offer", "go", direct ? "true" : "false");
+  } else if (role === "admin" && (i.status === "Open" || i.status === "Offered" || i.status === "Claimed")) {
     b += btn(i.id, "cancel", "Remove (admin)", "done");
   }
+
   if (b) h += '<div class="btns">' + b + '</div>';
   h += '<p class="meta" id="m-' + i.id + '"></p></div>';
   return h;
@@ -144,33 +168,39 @@ function render() {
   var isCol = role === "collector";
   if (tab === "pick" && !isCol) tab = "browse";
 
+  var offers = mine.filter(function (i) { return i.status === "Offered"; }).length;
   var tabs = '<div class="tabs"><button class="' + (tab === "browse" ? "on" : "") + '" onclick="show(\'browse\')">Browse (' + browse.length + ')</button>' +
     (isCol ? '<button class="' + (tab === "pick" ? "on" : "") + '" onclick="show(\'pick\')">My pickups (' + pick.length + ')</button>' : "") +
-    '<button class="' + (tab === "mine" ? "on" : "") + '" onclick="show(\'mine\')">My listings (' + mine.length + ')</button></div>';
+    '<button class="' + (tab === "mine" ? "on" : "") + '" onclick="show(\'mine\')">My listings (' + mine.length + ')' + (offers ? " •" : "") + '</button></div>';
 
   var list = tab === "browse" ? browse : (tab === "pick" ? pick : mine);
   var note = (tab === "browse" && !isCol)
-    ? '<div class="note">Only verified collectors can claim pickups. Collectors are approved by the GreenBin admin.</div>' : "";
+    ? '<div class="note">Only verified collectors can claim pickups. Collectors are approved by the GreenBin team.</div>' : "";
+  var offerNote = (tab === "mine" && offers) ? '<div class="note">You have ' + offers + ' offer(s) waiting for your answer.</div>' : "";
   var empty = tab === "browse" ? "No open listings right now." :
     (tab === "pick" ? "You have not claimed any pickups yet." : "You have not posted anything yet. Tap Sell recyclables.");
 
-  app.innerHTML = tabs + note + (list.length ? list.map(card).join("") : '<div class="empty">' + empty + '</div>');
+  app.innerHTML = tabs + note + offerNote + (list.length ? list.map(card).join("") : '<div class="empty">' + empty + '</div>');
 }
 function show(t) { tab = t; render(); }
 
-function act(id, action, b) {
-  if (action === "cancel" && !confirm("Cancel this listing?")) return;
+function send(id, payload, b) {
   b.disabled = true;
   var note = document.getElementById("m-" + id);
   if (note) note.textContent = "Saving...";
+  payload.id = id;
   fetch("/api/listings", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: id, action: action })
+    body: JSON.stringify(payload)
   }).then(function (r) {
     return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
   }).then(function (res) {
-    if (res.ok) { if (action === "claim") tab = "pick"; load(); return; }
+    if (res.ok) {
+      if (payload.action === "claim") tab = "pick";
+      load();
+      return;
+    }
     if (note) note.textContent = res.d.error || "Could not save";
     b.disabled = false;
   }).catch(function () {
@@ -179,12 +209,24 @@ function act(id, action, b) {
   });
 }
 
+function act(id, action, b, direct) {
+  if (action === "cancel" && !confirm("Cancel this listing?")) return;
+  if (action === "claim" && direct === false) {
+    var v = prompt("Your offer in ₦ for this waste (0 means a free pickup):", "");
+    if (v === null) return;
+    v = v.replace(/[,\s]/g, "");
+    if (v === "" || isNaN(Number(v)) || Number(v) < 0 || Number(v) % 1 !== 0) { alert("Please enter a whole number, for example 500."); return; }
+    send(id, { action: "claim", offer_price: Number(v) }, b);
+    return;
+  }
+  send(id, { action: action }, b);
+}
+
 function load() {
   fetch("/api/listings", { cache: "no-store" }).then(function (r) {
     return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, d: d }; });
   }).then(function (res) {
     if (res.status === 401) {
-      signedIn = false;
       app.innerHTML = '<div class="msg">Please sign in on the <a href="/">main app</a> first, then come back here.</div>';
       document.getElementById("fab").style.display = "none";
       return;
@@ -193,7 +235,6 @@ function load() {
       app.innerHTML = '<div class="msg">' + esc(res.d.error || "Could not load the market") + '</div>';
       return;
     }
-    signedIn = true;
     items = res.d.items;
     role = res.d.role;
     render();
@@ -204,10 +245,22 @@ function load() {
 
 /* ---------- Sell form ---------- */
 var sell = document.getElementById("sell");
-document.getElementById("fab").onclick = function () {
-  sell.style.display = "block";
-  window.scrollTo(0, 0);
-};
+var catSel = document.getElementById("s-cat");
+var priceIn = document.getElementById("s-price");
+var catNote = document.getElementById("s-cat-note");
+
+catSel.addEventListener("change", function () {
+  if (catSel.value === UNSORTED) {
+    priceIn.value = "";
+    priceIn.disabled = true;
+    catNote.textContent = "Unsorted waste is flagged for collectors. They will make you an offer, and you can accept or decline it. Sorting first usually earns more.";
+  } else {
+    priceIn.disabled = false;
+    catNote.textContent = "Sorted waste usually earns more. Mixed waste is flagged as unsorted, and collectors will make you an offer.";
+  }
+});
+
+document.getElementById("fab").onclick = function () { sell.style.display = "block"; window.scrollTo(0, 0); };
 document.getElementById("s-cancel").onclick = function () { sell.style.display = "none"; };
 
 document.getElementById("s-geo").onclick = function () {
@@ -216,7 +269,7 @@ document.getElementById("s-geo").onclick = function () {
   n.textContent = "Finding you...";
   navigator.geolocation.getCurrentPosition(function (p) {
     geo = { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) };
-    n.textContent = "Pin saved ✓ (shared only with the collector who claims it)";
+    n.textContent = "Pin saved ✓ (shared only after you agree a deal)";
   }, function () {
     n.textContent = "Could not get your location. You can still post without a pin.";
   }, { enableHighAccuracy: true, timeout: 10000 });
@@ -259,9 +312,9 @@ document.getElementById("sell-form").addEventListener("submit", function (e) {
   err.className = "err";
 
   var title = document.getElementById("s-title").value.trim();
-  var cat = document.getElementById("s-cat").value;
+  var cat = catSel.value;
   var qty = document.getElementById("s-qty").value.trim();
-  var price = document.getElementById("s-price").value.trim();
+  var price = priceIn.value.trim();
   var loc = document.getElementById("s-loc").value.trim();
   var phone = document.getElementById("s-phone").value.trim();
   var file = document.getElementById("s-photo").files[0];
@@ -269,7 +322,7 @@ document.getElementById("sell-form").addEventListener("submit", function (e) {
   if (title.length < 3) return fail("Please enter what you are selling.");
   if (!cat) return fail("Please choose a category.");
   if (!qty) return fail("Please enter a quantity.");
-  if (price !== "" && (isNaN(Number(price)) || Number(price) < 0 || Number(price) % 1 !== 0)) return fail("Price must be a whole number.");
+  if (cat !== UNSORTED && price !== "" && (isNaN(Number(price)) || Number(price) < 0 || Number(price) % 1 !== 0)) return fail("Price must be a whole number.");
   if (loc.length < 3) return fail("Please enter your area.");
 
   b.disabled = true;
@@ -281,7 +334,7 @@ document.getElementById("sell-form").addEventListener("submit", function (e) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: title, category: cat, quantity: qty,
-        price: price === "" ? null : Number(price),
+        price: (cat === UNSORTED || price === "") ? null : Number(price),
         location: loc, contact: phone,
         lat: geo ? geo.lat : null, lng: geo ? geo.lng : null,
         photo_key: key
@@ -292,6 +345,7 @@ document.getElementById("sell-form").addEventListener("submit", function (e) {
   }).then(function (res) {
     if (!res.ok) { fail(res.d.error || "Could not post"); return; }
     document.getElementById("sell-form").reset();
+    priceIn.disabled = false;
     geo = null;
     document.getElementById("s-geo-note").textContent = "";
     sell.style.display = "none";
@@ -308,4 +362,4 @@ document.getElementById("sell-form").addEventListener("submit", function (e) {
 load();
 </script>
 </body>
-  </html>
+</html>
