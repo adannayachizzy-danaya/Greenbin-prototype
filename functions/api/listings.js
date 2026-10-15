@@ -1,4 +1,6 @@
-const CATEGORIES = ["Plastic", "Paper / Cardboard", "Glass", "Metal", "E-waste", "Other"];
+const CATEGORIES = ["Plastic", "Paper / Cardboard", "Glass", "Metal", "E-waste", "Other", "Unsorted / Mixed"];
+const UNSORTED = "Unsorted / Mixed";
+const MAX_PRICE = 10000000;
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -24,25 +26,34 @@ export async function onRequestGet({ request, env }) {
     const { results } = await env.DB
       .prepare(`SELECT l.id, l.user_id, l.category, l.title, l.quantity, l.price, l.location, l.lat, l.lng,
                        l.contact, l.photo_key, l.status, l.claimed_by, l.claimed_at, l.completed_at, l.created_at,
-                       c.email AS claimer_email
-                FROM listings l LEFT JOIN users c ON c.id = l.claimed_by
+                       l.sorted, l.offer_price, l.agreed_price,
+                       c.email AS claimer_email, c.full_name AS claimer_name, c.phone AS claimer_phone,
+                       s.full_name AS seller_name
+                FROM listings l
+                LEFT JOIN users c ON c.id = l.claimed_by
+                LEFT JOIN users s ON s.id = l.user_id
                 WHERE l.status = 'Open' OR l.user_id = ? OR l.claimed_by = ?
                 ORDER BY l.id DESC LIMIT 100`)
       .bind(user.id, user.id).all();
 
     const items = results.map((l) => {
       const mine = l.user_id === user.id;
-      const claimedByMe = l.claimed_by === user.id;
-      const private_ = mine || claimedByMe;
+      const byMe = l.claimed_by === user.id;
+      const agreed = l.status === "Claimed" || l.status === "Completed";
+      const showPrivate = mine || (byMe && agreed);
       return {
         id: l.id, category: l.category, title: l.title, quantity: l.quantity, price: l.price,
         location: l.location, photo_key: l.photo_key, status: l.status,
         created_at: l.created_at, claimed_at: l.claimed_at, completed_at: l.completed_at,
-        mine, claimed_by_me: claimedByMe,
-        lat: private_ ? l.lat : null,
-        lng: private_ ? l.lng : null,
-        contact: private_ ? l.contact : null,
+        sorted: !!l.sorted, offer_price: l.offer_price, agreed_price: l.agreed_price,
+        mine, claimed_by_me: byMe,
+        lat: showPrivate ? l.lat : null,
+        lng: showPrivate ? l.lng : null,
+        contact: showPrivate ? l.contact : null,
         claimer_email: mine ? l.claimer_email : null,
+        claimer_name: mine ? l.claimer_name : null,
+        claimer_phone: mine && agreed ? l.claimer_phone : null,
+        seller_name: byMe && agreed ? l.seller_name : null,
       };
     });
     return json({ items, role: user.role });
@@ -77,10 +88,11 @@ export async function onRequestPost({ request, env }) {
     if (location.length < 3 || location.length > 120) return json({ error: "Please enter your area" }, 400);
     if (contact && !/^[0-9+\-\s()]{6,30}$/.test(contact)) return json({ error: "Phone number looks invalid" }, 400);
 
+    const sorted = category === UNSORTED ? 0 : 1;
     let price = null;
-    if (body.price !== null && body.price !== undefined && body.price !== "") {
+    if (sorted && body.price !== null && body.price !== undefined && body.price !== "") {
       price = Number(body.price);
-      if (!Number.isInteger(price) || price < 0 || price > 10000000) return json({ error: "Price must be a whole number" }, 400);
+      if (!Number.isInteger(price) || price < 0 || price > MAX_PRICE) return json({ error: "Price must be a whole number" }, 400);
     }
 
     const lat = Number(body.lat);
@@ -90,8 +102,8 @@ export async function onRequestPost({ request, env }) {
     const photoKey = /^[a-f0-9]{32}\.jpg$/.test(String(body.photo_key || "")) ? body.photo_key : null;
 
     const r = await env.DB
-      .prepare("INSERT INTO listings (user_id, category, title, quantity, price, location, lat, lng, contact, photo_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(user.id, category, title, quantity, price, location, hasGeo ? lat : null, hasGeo ? lng : null, contact || null, photoKey)
+      .prepare("INSERT INTO listings (user_id, category, title, quantity, price, location, lat, lng, contact, photo_key, sorted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(user.id, category, title, quantity, price, location, hasGeo ? lat : null, hasGeo ? lng : null, contact || null, photoKey, sorted)
       .run();
     return json({ ok: true, id: r.meta.last_row_id }, 201);
   } catch (err) {
@@ -113,31 +125,62 @@ export async function onRequestPatch({ request, env }) {
     if (!id) return json({ error: "Bad listing id" }, 400);
 
     const l = await env.DB
-      .prepare("SELECT id, user_id, status, claimed_by FROM listings WHERE id = ?")
+      .prepare("SELECT id, user_id, status, claimed_by, sorted, price FROM listings WHERE id = ?")
       .bind(id).first();
     if (!l) return json({ error: "Listing not found" }, 404);
 
     if (action === "claim") {
       if (user.role !== "collector") return json({ error: "Only verified collectors can claim pickups" }, 403);
       if (l.user_id === user.id) return json({ error: "You cannot claim your own listing" }, 400);
-      const r = await env.DB
-        .prepare("UPDATE listings SET status = 'Claimed', claimed_by = ?, claimed_at = ? WHERE id = ? AND status = 'Open'")
-        .bind(user.id, nowStr(), id).run();
+
+      const direct = l.sorted && l.price !== null;
+      let r;
+      if (direct) {
+        r = await env.DB
+          .prepare("UPDATE listings SET status = 'Claimed', claimed_by = ?, claimed_at = ?, agreed_price = ?, offer_price = NULL WHERE id = ? AND status = 'Open'")
+          .bind(user.id, nowStr(), l.price, id).run();
+      } else {
+        const offer = Number(body.offer_price);
+        if (body.offer_price === undefined || body.offer_price === "" || !Number.isInteger(offer) || offer < 0 || offer > MAX_PRICE) {
+          return json({ error: "Please enter your offer as a whole number (0 means a free pickup)" }, 400);
+        }
+        r = await env.DB
+          .prepare("UPDATE listings SET status = 'Offered', claimed_by = ?, offer_price = ? WHERE id = ? AND status = 'Open'")
+          .bind(user.id, offer, id).run();
+      }
       if (!r.meta.changes) return json({ error: "This listing is no longer available" }, 409);
+      return json({ ok: true, direct });
+    }
+
+    if (action === "accept") {
+      if (l.user_id !== user.id) return json({ error: "Only the seller can accept an offer" }, 403);
+      const r = await env.DB
+        .prepare("UPDATE listings SET status = 'Claimed', agreed_price = offer_price, claimed_at = ? WHERE id = ? AND status = 'Offered'")
+        .bind(nowStr(), id).run();
+      if (!r.meta.changes) return json({ error: "There is no offer to accept" }, 409);
+      return json({ ok: true });
+    }
+
+    if (action === "reject") {
+      if (l.user_id !== user.id) return json({ error: "Only the seller can decline an offer" }, 403);
+      const r = await env.DB
+        .prepare("UPDATE listings SET status = 'Open', claimed_by = NULL, offer_price = NULL WHERE id = ? AND status = 'Offered'")
+        .bind(id).run();
+      if (!r.meta.changes) return json({ error: "There is no offer to decline" }, 409);
       return json({ ok: true });
     }
 
     if (action === "release") {
-      if (l.claimed_by !== user.id || l.status !== "Claimed") return json({ error: "Not your pickup" }, 403);
+      if (l.claimed_by !== user.id || (l.status !== "Claimed" && l.status !== "Offered")) return json({ error: "Not your pickup" }, 403);
       await env.DB
-        .prepare("UPDATE listings SET status = 'Open', claimed_by = NULL, claimed_at = NULL WHERE id = ?")
+        .prepare("UPDATE listings SET status = 'Open', claimed_by = NULL, claimed_at = NULL, offer_price = NULL, agreed_price = NULL WHERE id = ?")
         .bind(id).run();
       return json({ ok: true });
     }
 
     if (action === "complete") {
       if (l.user_id !== user.id) return json({ error: "Only the seller can complete a listing" }, 403);
-      if (l.status !== "Claimed") return json({ error: "Only claimed listings can be completed" }, 400);
+      if (l.status !== "Claimed") return json({ error: "Only agreed listings can be completed" }, 400);
       await env.DB
         .prepare("UPDATE listings SET status = 'Completed', completed_at = ? WHERE id = ?")
         .bind(nowStr(), id).run();
@@ -146,7 +189,7 @@ export async function onRequestPatch({ request, env }) {
 
     if (action === "cancel") {
       if (l.user_id !== user.id && user.role !== "admin") return json({ error: "Not allowed" }, 403);
-      if (l.status !== "Open" && l.status !== "Claimed") return json({ error: "Listing is already closed" }, 400);
+      if (!["Open", "Offered", "Claimed"].includes(l.status)) return json({ error: "Listing is already closed" }, 400);
       await env.DB.prepare("UPDATE listings SET status = 'Cancelled' WHERE id = ?").bind(id).run();
       return json({ ok: true });
     }
