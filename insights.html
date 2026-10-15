@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#14532d">
+<title>GreenBin Insights</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Roboto,Arial,sans-serif;background:#f8faf7;color:#1a2b1f;line-height:1.5}
+  header{background:#14532d;color:#fff;padding:1rem 1.2rem;display:flex;justify-content:space-between;gap:.5rem}
+  header a{color:#fff;font-weight:700}
+  main{max-width:720px;margin:0 auto;padding:1rem}
+  .controls{display:grid;grid-template-columns:1fr;gap:.6rem;margin-bottom:1rem}
+  select,input,button{font:inherit;font-size:16px;padding:.75rem .9rem;border-radius:12px;border:2px solid #2f4536;background:#fff;width:100%;min-height:48px}
+  button{background:#166534;color:#fff;border:0;font-weight:800;cursor:pointer}
+  button.alt{background:#fff;color:#14532d;border:2px solid #166534}
+  .title{margin:.4rem 0 1rem}
+  .title h1{margin:0;font-size:1.5rem}
+  .title p{margin:.2rem 0 0;color:#33463a}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem}
+  .stat{background:#fff;border:1px solid #dbe5dd;border-top:6px solid #166534;border-radius:16px;padding:.9rem;box-shadow:0 1px 4px rgba(16,28,20,.08)}
+  .stat b{display:block;font-size:1.7rem;line-height:1.2;color:#101c14}
+  .stat span{color:#33463a;font-size:.9rem}
+  .card{background:#fff;border:1px solid #dbe5dd;border-radius:16px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(16,28,20,.08)}
+  .card h2{margin:0 0 .6rem;font-size:1.15rem}
+  .bar{height:10px;background:#dde7de;border-radius:999px;overflow:hidden;margin:.25rem 0 .7rem;position:relative}
+  .bar i{display:block;height:100%;background:#9fd3ae;position:absolute;left:0;top:0}
+  .bar u{display:block;height:100%;background:#166534;position:absolute;left:0;top:0;text-decoration:none}
+  .line{display:flex;justify-content:space-between;gap:.5rem;font-weight:700;font-size:.95rem}
+  .line span:last-child{color:#33463a;font-weight:600}
+  .old{padding:.6rem 0;border-top:1px solid #e4ece6}
+  .old:first-of-type{border-top:0}
+  .muted{color:#33463a;font-size:.9rem}
+  .msg{padding:1rem;background:#fee2e2;border:2px solid #991b1b;border-radius:12px;color:#5f0f0f;font-weight:600}
+  @media print{
+    header,.controls,.noprint{display:none!important}
+    body{background:#fff}
+    .stat,.card{box-shadow:none}
+  }
+</style>
+</head>
+<body>
+<header><strong>GreenBin Insights</strong><a href="/admin.html">Admin</a></header>
+<main>
+  <div class="controls">
+    <select id="days">
+      <option value="7">Last 7 days</option>
+      <option value="30" selected>Last 30 days</option>
+      <option value="90">Last 90 days</option>
+      <option value="365">Last 12 months</option>
+    </select>
+    <input id="q" type="text" placeholder="Estate or area name (optional)" autocomplete="off" maxlength="60">
+    <button id="go" type="button">Update report</button>
+  </div>
+  <div id="out"><p>Loading...</p></div>
+  <button class="alt noprint" id="print" type="button" style="margin-top:.5rem">Print / Save as PDF</button>
+</main>
+
+<script>
+var esc = function (s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+};
+var out = document.getElementById("out");
+
+function dur(h) {
+  if (h == null) return "–";
+  if (h < 1) return Math.max(1, Math.round(h * 60)) + " min";
+  if (h < 48) return h.toFixed(1) + " hrs";
+  return (h / 24).toFixed(1) + " days";
+}
+function pct(a, b) { return b ? Math.round((a / b) * 100) + "%" : "–"; }
+function dateOnly(s) { return String(s || "").slice(0, 10); }
+
+function render(d) {
+  var t = d.totals;
+  var label = d.q ? d.q : "All areas";
+  var period = d.days === 365 ? "last 12 months" : "last " + d.days + " days";
+
+  var html = '<div class="title"><h1>Waste report: ' + esc(label) + '</h1>' +
+    '<p>Period: ' + esc(period) + ' · Generated ' + esc(new Date().toLocaleDateString()) + '</p></div>';
+
+  html += '<div class="grid">' +
+    '<div class="stat"><b>' + t.total + '</b><span>Reports received</span></div>' +
+    '<div class="stat"><b>' + pct(t.resolved, t.total) + '</b><span>Collected (' + t.resolved + ' of ' + t.total + ')</span></div>' +
+    '<div class="stat"><b>' + dur(t.avg_hours) + '</b><span>Average time to collection</span></div>' +
+    '<div class="stat"><b>' + (t.pending + t.in_progress) + '</b><span>Still open (' + t.unassigned + ' unassigned)</span></div>' +
+    '<div class="stat"><b>' + t.high + '</b><span>High urgency</span></div>' +
+    '<div class="stat"><b>' + pct(t.with_photo, t.total) + '</b><span>With photo evidence</span></div>' +
+    '</div>';
+
+  if (!t.total) {
+    out.innerHTML = html + '<div class="card"><p class="muted">No reports found for this period and area. Try a longer period or a different area name.</p></div>';
+    return;
+  }
+
+  var maxC = Math.max.apply(null, d.categories.map(function (c) { return c.n; }).concat([1]));
+  html += '<div class="card"><h2>By category</h2>' + d.categories.map(function (c) {
+    return '<div class="line"><span>' + esc(c.category) + '</span><span>' + c.n + ' reports · ' + c.resolved + ' collected</span></div>' +
+      '<div class="bar"><i style="width:' + Math.round((c.n / maxC) * 100) + '%"></i>' +
+      '<u style="width:' + Math.round((c.resolved / maxC) * 100) + '%"></u></div>';
+  }).join("") + '<p class="muted">Dark = collected, light = reported.</p></div>';
+
+  var maxW = Math.max.apply(null, d.weeks.map(function (w) { return w.n; }).concat([1]));
+  html += '<div class="card"><h2>By week</h2>' + d.weeks.map(function (w) {
+    return '<div class="line"><span>Week of ' + esc(w.week) + '</span><span>' + w.n + ' reported · ' + w.resolved + ' collected</span></div>' +
+      '<div class="bar"><i style="width:' + Math.round((w.n / maxW) * 100) + '%"></i>' +
+      '<u style="width:' + Math.round((w.resolved / maxW) * 100) + '%"></u></div>';
+  }).join("") + '</div>';
+
+  html += '<div class="card"><h2>Oldest open reports</h2>' + (d.oldest_open.length ?
+    d.oldest_open.map(function (r) {
+      return '<div class="old"><strong>' + esc(r.location) + '</strong><br>' +
+        '<span class="muted">' + esc(r.category) + ' · ' + esc(r.urgency) + ' urgency · ' + esc(r.status) +
+        ' · reported ' + esc(dateOnly(r.created_at)) + '</span></div>';
+    }).join("") : '<p class="muted">No open reports. Everything has been collected.</p>') + '</div>';
+
+  out.innerHTML = html;
+}
+
+function load() {
+  out.innerHTML = "<p>Loading...</p>";
+  var days = document.getElementById("days").value;
+  var q = document.getElementById("q").value.trim();
+  fetch("/api/admin/insights?days=" + encodeURIComponent(days) + "&q=" + encodeURIComponent(q), { cache: "no-store" })
+    .then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, d: d }; });
+    })
+    .then(function (res) {
+      if (res.status === 401) { out.innerHTML = '<div class="msg">Please sign in on the <a href="/">main app</a> first, then come back.</div>'; return; }
+      if (res.status === 403) { out.innerHTML = '<div class="msg">This page is for admins only.</div>'; return; }
+      if (!res.d.totals) { out.innerHTML = '<div class="msg">' + esc(res.d.error || "Could not load the report") + '</div>'; return; }
+      render(res.d);
+    })
+    .catch(function () { out.innerHTML = '<div class="msg">Connection problem. Please refresh.</div>'; });
+}
+
+document.getElementById("go").onclick = load;
+document.getElementById("q").addEventListener("keydown", function (e) { if (e.key === "Enter") load(); });
+document.getElementById("print").onclick = function () { window.print(); };
+load();
+</script>
+</body>
+  </html>
