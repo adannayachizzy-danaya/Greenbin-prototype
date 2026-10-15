@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<title>GreenBin Market</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{max-width:100%;overflow-x:hidden}
+  body{margin:0;font-family:-apple-system,Roboto,Arial,sans-serif;background:#f8faf7;color:#1a2b1f;line-height:1.5;padding-bottom:6rem}
+  header{position:sticky;top:0;z-index:10;background:#14532d;color:#fff;padding:calc(.8rem + env(safe-area-inset-top)) 1rem .8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+  header a{color:#fff;font-weight:700}
+  main{max-width:640px;margin:0 auto;padding:1rem}
+  .tabs{display:flex;background:#e4ece6;border-radius:14px;padding:4px;margin-bottom:1rem;gap:2px}
+  .tabs button{flex:1;border:0;background:none;font:inherit;font-weight:800;font-size:.9rem;color:#33463a;padding:.7rem .2rem;border-radius:11px;cursor:pointer}
+  .tabs button.on{background:#fff;color:#14532d;box-shadow:0 1px 4px rgba(16,28,20,.15)}
+  .card{background:#fff;border:1px solid #dbe5dd;border-radius:16px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(16,28,20,.08)}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}
+  .badge{font-size:.85rem;font-weight:800;padding:.2rem .7rem;border-radius:999px;border:2px solid #166534;background:#dcfce7;color:#14532d}
+  .badge.st-Claimed{border-color:#a16207;background:#fefce8;color:#713f12}
+  .badge.st-Completed{border-color:#166534;background:#dcfce7;color:#14532d}
+  .badge.st-Cancelled{border-color:#6b7280;background:#f3f4f6;color:#374151}
+  h3{margin:.6rem 0 .3rem;font-size:1.1rem}
+  .meta{color:#33463a;font-size:.92rem;margin:.2rem 0}
+  .photo{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin:.6rem 0}
+  .btns{display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap}
+  .btns a,.btns button{flex:1;min-width:130px;min-height:48px;border-radius:14px;font:inherit;font-weight:800;font-size:1rem;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .nav{background:#fff;color:#14532d!important;border:2px solid #166534}
+  .go{background:#166534;color:#fff;border:0}
+  .done{background:#fff;color:#33463a;border:2px solid #9db0a2}
+  button:disabled{opacity:.6}
+  .note{padding:.8rem 1rem;background:#fef3c7;border:2px solid #92400e;border-radius:12px;margin-bottom:1rem;color:#3f2a05;font-weight:600}
+  .msg{padding:1rem;background:#fee2e2;border:2px solid #991b1b;border-radius:12px;color:#5f0f0f;font-weight:600}
+  .empty{text-align:center;color:#33463a;padding:2rem 1rem}
+  .priv{background:#f0fdf4;border:2px solid #166534;border-radius:12px;padding:.6rem .8rem;margin-top:.6rem;font-size:.95rem}
+  #fab{position:fixed;right:1rem;bottom:calc(1rem + env(safe-area-inset-bottom));z-index:20;background:#166534;color:#fff;border:0;border-radius:999px;padding:.95rem 1.3rem;font:inherit;font-weight:800;font-size:1rem;box-shadow:0 4px 14px rgba(20,83,45,.4);cursor:pointer}
+  #sell{display:none}
+  #sell label{display:block;font-weight:700;margin:.9rem 0 .3rem;font-size:.95rem}
+  #sell input,#sell select{width:100%;font:inherit;font-size:16px;border:2px solid #2f4536;border-radius:12px;padding:.75rem .9rem;min-height:48px;background:#fff;color:#101c14}
+  #sell .small{font-weight:400;color:#33463a;font-size:.85rem}
+  #sell .err{display:none;margin-top:.8rem;padding:.7rem .9rem;background:#fee2e2;border:2px solid #991b1b;border-radius:12px;color:#5f0f0f;font-weight:600}
+  #sell .err.on{display:block}
+</style>
+</head>
+<body>
+<header><strong>Recyclables market</strong><a href="/">Back to app</a></header>
+<main>
+  <div id="sell" class="card">
+    <h3 style="margin-top:0">Sell recyclables</h3>
+    <form id="sell-form" novalidate>
+      <label for="s-title">What are you selling?</label>
+      <input id="s-title" type="text" maxlength="80" placeholder="e.g. Clean plastic bottles">
+      <label for="s-cat">Category</label>
+      <select id="s-cat">
+        <option value="">Select a category</option>
+        <option>Plastic</option><option>Paper / Cardboard</option><option>Glass</option>
+        <option>Metal</option><option>E-waste</option><option>Other</option>
+      </select>
+      <label for="s-qty">Quantity</label>
+      <input id="s-qty" type="text" maxlength="40" placeholder="e.g. 20 kg or 3 bags">
+      <label for="s-price">Asking price in ₦ <span class="small">(leave empty to negotiate, 0 for free)</span></label>
+      <input id="s-price" type="number" inputmode="numeric" min="0" placeholder="e.g. 1500">
+      <label for="s-loc">Area <span class="small">(area or landmark only, not your house address)</span></label>
+      <input id="s-loc" type="text" maxlength="120" placeholder="e.g. Ila Oregun, near the junction">
+      <label>Exact pin <span class="small">(shared only with the collector who claims it)</span></label>
+      <button type="button" id="s-geo" class="done" style="width:100%;min-height:48px;border-radius:12px;font:inherit;font-weight:800">Use my current location</button>
+      <p class="meta" id="s-geo-note"></p>
+      <label for="s-phone">Phone / WhatsApp <span class="small">(optional, shared only with the collector who claims it)</span></label>
+      <input id="s-phone" type="tel" maxlength="30" placeholder="e.g. 0803 000 0000">
+      <label for="s-photo">Photo <span class="small">(optional)</span></label>
+      <input id="s-photo" type="file" accept="image/*">
+      <div class="err" id="sell-err" role="alert"></div>
+      <div class="btns">
+        <button type="button" class="done" id="s-cancel">Cancel</button>
+        <button type="submit" class="go" id="s-submit">Post listing</button>
+      </div>
+    </form>
+  </div>
+  <div id="app"><p>Loading...</p></div>
+</main>
+<button id="fab" type="button">+ Sell recyclables</button>
+
+<script>
+var esc = function (s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+};
+var app = document.getElementById("app");
+var items = [], role = null, tab = "browse", geo = null, signedIn = false;
+
+function money(p) {
+  if (p == null) return "Price: negotiable";
+  if (p === 0) return "Free";
+  return "₦" + Number(p).toLocaleString();
+}
+function mapLink(i) {
+  if (i.lat != null && i.lng != null) return "https://www.google.com/maps/dir/?api=1&destination=" + i.lat + "," + i.lng;
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(i.location);
+}
+function btn(id, action, label, cls) {
+  return '<button class="' + cls + '" onclick="act(' + id + ',\'' + action + '\',this)">' + label + '</button>';
+}
+
+function card(i) {
+  var h = '<div class="card"><div class="row"><span class="badge">' + esc(i.category) + '</span>' +
+    '<span class="badge st-' + esc(i.status) + '">' + esc(i.status) + '</span></div>' +
+    '<h3>' + esc(i.title) + '</h3>' +
+    '<p class="meta"><strong>' + esc(i.quantity) + '</strong> · ' + esc(money(i.price)) + '</p>' +
+    '<p class="meta">Area: ' + esc(i.location) + '</p>';
+  if (i.photo_key) h += '<img class="photo" loading="lazy" alt="Photo of recyclables" src="/api/photo/' + esc(i.photo_key) + '">';
+
+  if (i.mine && i.claimer_email && i.status !== "Cancelled") {
+    h += '<div class="priv">Claimed by <strong>' + esc(i.claimer_email) + '</strong>. They may contact you at the number you gave.</div>';
+  }
+  if (i.claimed_by_me && i.status !== "Cancelled") {
+    h += '<div class="priv">Seller contact: <strong>' + esc(i.contact || "not provided") + '</strong></div>';
+  }
+
+  var b = "";
+  if (i.mine) {
+    if (i.status === "Claimed") b += btn(i.id, "complete", "Mark completed", "go");
+    if (i.status === "Open" || i.status === "Claimed") b += btn(i.id, "cancel", "Cancel listing", "done");
+  } else if (i.claimed_by_me) {
+    if (i.status === "Claimed") {
+      b += '<a class="nav" target="_blank" rel="noopener" href="' + esc(mapLink(i)) + '">Open in Maps</a>';
+      b += btn(i.id, "release", "Release", "done");
+    }
+  } else if (i.status === "Open" && role === "collector") {
+    b += btn(i.id, "claim", "Claim pickup", "go");
+  } else if (role === "admin" && (i.status === "Open" || i.status === "Claimed")) {
+    b += btn(i.id, "cancel", "Remove (admin)", "done");
+  }
+  if (b) h += '<div class="btns">' + b + '</div>';
+  h += '<p class="meta" id="m-' + i.id + '"></p></div>';
+  return h;
+}
+
+function render() {
+  var browse = items.filter(function (i) { return !i.mine && !i.claimed_by_me && i.status === "Open"; });
+  var pick = items.filter(function (i) { return i.claimed_by_me; });
+  var mine = items.filter(function (i) { return i.mine; });
+  var isCol = role === "collector";
+  if (tab === "pick" && !isCol) tab = "browse";
+
+  var tabs = '<div class="tabs"><button class="' + (tab === "browse" ? "on" : "") + '" onclick="show(\'browse\')">Browse (' + browse.length + ')</button>' +
+    (isCol ? '<button class="' + (tab === "pick" ? "on" : "") + '" onclick="show(\'pick\')">My pickups (' + pick.length + ')</button>' : "") +
+    '<button class="' + (tab === "mine" ? "on" : "") + '" onclick="show(\'mine\')">My listings (' + mine.length + ')</button></div>';
+
+  var list = tab === "browse" ? browse : (tab === "pick" ? pick : mine);
+  var note = (tab === "browse" && !isCol)
+    ? '<div class="note">Only verified collectors can claim pickups. Collectors are approved by the GreenBin admin.</div>' : "";
+  var empty = tab === "browse" ? "No open listings right now." :
+    (tab === "pick" ? "You have not claimed any pickups yet." : "You have not posted anything yet. Tap Sell recyclables.");
+
+  app.innerHTML = tabs + note + (list.length ? list.map(card).join("") : '<div class="empty">' + empty + '</div>');
+}
+function show(t) { tab = t; render(); }
+
+function act(id, action, b) {
+  if (action === "cancel" && !confirm("Cancel this listing?")) return;
+  b.disabled = true;
+  var note = document.getElementById("m-" + id);
+  if (note) note.textContent = "Saving...";
+  fetch("/api/listings", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: id, action: action })
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+  }).then(function (res) {
+    if (res.ok) { if (action === "claim") tab = "pick"; load(); return; }
+    if (note) note.textContent = res.d.error || "Could not save";
+    b.disabled = false;
+  }).catch(function () {
+    if (note) note.textContent = "Connection problem";
+    b.disabled = false;
+  });
+}
+
+function load() {
+  fetch("/api/listings", { cache: "no-store" }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, d: d }; });
+  }).then(function (res) {
+    if (res.status === 401) {
+      signedIn = false;
+      app.innerHTML = '<div class="msg">Please sign in on the <a href="/">main app</a> first, then come back here.</div>';
+      document.getElementById("fab").style.display = "none";
+      return;
+    }
+    if (!res.d.items) {
+      app.innerHTML = '<div class="msg">' + esc(res.d.error || "Could not load the market") + '</div>';
+      return;
+    }
+    signedIn = true;
+    items = res.d.items;
+    role = res.d.role;
+    render();
+  }).catch(function () {
+    app.innerHTML = '<div class="msg">Connection problem. Please refresh.</div>';
+  });
+}
+
+/* ---------- Sell form ---------- */
+var sell = document.getElementById("sell");
+document.getElementById("fab").onclick = function () {
+  sell.style.display = "block";
+  window.scrollTo(0, 0);
+};
+document.getElementById("s-cancel").onclick = function () { sell.style.display = "none"; };
+
+document.getElementById("s-geo").onclick = function () {
+  var n = document.getElementById("s-geo-note");
+  if (!navigator.geolocation) { n.textContent = "Your browser cannot share location."; return; }
+  n.textContent = "Finding you...";
+  navigator.geolocation.getCurrentPosition(function (p) {
+    geo = { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) };
+    n.textContent = "Pin saved ✓ (shared only with the collector who claims it)";
+  }, function () {
+    n.textContent = "Could not get your location. You can still post without a pin.";
+  }, { enableHighAccuracy: true, timeout: 10000 });
+};
+
+function shrink(file) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function () {
+      var s = Math.min(1, 1024 / Math.max(img.width, img.height));
+      var c = document.createElement("canvas");
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(function (b) { b ? resolve(b) : reject(new Error("Could not read photo")); }, "image/jpeg", 0.75);
+    };
+    img.onerror = function () { reject(new Error("Could not read photo")); };
+    img.src = url;
+  });
+}
+
+function uploadPhoto(blob) {
+  var fd = new FormData();
+  fd.append("photo", blob, "photo.jpg");
+  return fetch("/api/upload", { method: "POST", body: fd }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) {
+      if (!r.ok) throw new Error(d.error || "Photo upload failed");
+      return d.key;
+    });
+  });
+}
+
+document.getElementById("sell-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var err = document.getElementById("sell-err");
+  var b = document.getElementById("s-submit");
+  function fail(m) { err.textContent = m; err.className = "err on"; }
+  err.className = "err";
+
+  var title = document.getElementById("s-title").value.trim();
+  var cat = document.getElementById("s-cat").value;
+  var qty = document.getElementById("s-qty").value.trim();
+  var price = document.getElementById("s-price").value.trim();
+  var loc = document.getElementById("s-loc").value.trim();
+  var phone = document.getElementById("s-phone").value.trim();
+  var file = document.getElementById("s-photo").files[0];
+
+  if (title.length < 3) return fail("Please enter what you are selling.");
+  if (!cat) return fail("Please choose a category.");
+  if (!qty) return fail("Please enter a quantity.");
+  if (price !== "" && (isNaN(Number(price)) || Number(price) < 0 || Number(price) % 1 !== 0)) return fail("Price must be a whole number.");
+  if (loc.length < 3) return fail("Please enter your area.");
+
+  b.disabled = true;
+  b.textContent = "Posting...";
+  var step = file ? shrink(file).then(uploadPhoto) : Promise.resolve(null);
+  step.then(function (key) {
+    return fetch("/api/listings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: title, category: cat, quantity: qty,
+        price: price === "" ? null : Number(price),
+        location: loc, contact: phone,
+        lat: geo ? geo.lat : null, lng: geo ? geo.lng : null,
+        photo_key: key
+      })
+    });
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; });
+  }).then(function (res) {
+    if (!res.ok) { fail(res.d.error || "Could not post"); return; }
+    document.getElementById("sell-form").reset();
+    geo = null;
+    document.getElementById("s-geo-note").textContent = "";
+    sell.style.display = "none";
+    tab = "mine";
+    load();
+  }).catch(function (ex) {
+    fail(ex && ex.message ? ex.message : "Something went wrong");
+  }).then(function () {
+    b.disabled = false;
+    b.textContent = "Post listing";
+  });
+});
+
+load();
+</script>
+</body>
+  </html>
