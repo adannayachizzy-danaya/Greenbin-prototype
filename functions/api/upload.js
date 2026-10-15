@@ -1,5 +1,4 @@
-
-  const json = (data, status = 200) =>
+const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
@@ -24,6 +23,14 @@ export async function onRequestPost({ request, env }) {
       .bind(m[1]).first();
     if (!user) return json({ error: "Please sign in first to submit a report" }, 401);
 
+    const ident = String(user.id);
+    const recent = await env.DB
+      .prepare("SELECT COUNT(*) AS n FROM attempts WHERE kind = 'upload-user' AND ident = ? AND created_at > datetime('now', '-1 hour')")
+      .bind(ident).first();
+    if (recent && recent.n >= 10) {
+      return json({ error: "Upload limit reached (10 photos per hour). Please try again later." }, 429);
+    }
+
     const form = await request.formData();
     const file = form.get("photo");
     if (!file || typeof file === "string") return json({ error: "No photo found" }, 400);
@@ -43,9 +50,16 @@ export async function onRequestPost({ request, env }) {
     const key = [...crypto.getRandomValues(new Uint8Array(16))]
       .map((x) => x.toString(16).padStart(2, "0")).join("") + ".jpg";
 
-    await env.DB.prepare("INSERT INTO photos (key, data) VALUES (?, ?)").bind(key, data).run();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO photos (key, data) VALUES (?, ?)").bind(key, data),
+      env.DB.prepare("INSERT INTO attempts (kind, ident) VALUES ('upload-user', ?)").bind(ident),
+      // Tidy up: remove photos older than a day that no report uses
+      env.DB.prepare("DELETE FROM photos WHERE created_at < datetime('now', '-1 day') AND key NOT IN (SELECT photo_key FROM reports WHERE photo_key IS NOT NULL)"),
+    ]);
+
     return json({ ok: true, key }, 201);
   } catch (err) {
     return json({ error: "Server problem: " + (err && err.message ? err.message : String(err)) }, 500);
   }
 }
+  
