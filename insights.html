@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#14532d">
 <title>GreenBin Insights</title>
-<style>
+ <style>
+html,body{max-width:100%;overflow-x:hidden}
+main{width:100%;overflow-x:hidden}
+.controls{grid-template-columns:minmax(0,1fr)!important}
+.grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.line{flex-wrap:wrap}
+.stat b{overflow-wrap:anywhere}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,Roboto,Arial,sans-serif;background:#f8faf7;color:#1a2b1f;line-height:1.5}
   header{background:#14532d;color:#fff;padding:1rem 1.2rem;display:flex;justify-content:space-between;gap:.5rem}
